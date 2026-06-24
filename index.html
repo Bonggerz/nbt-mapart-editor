@@ -1,0 +1,2812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBT Mapart Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+        :root {
+            --workarea-height: min(700px, calc(100vh - 172px));
+            --side-panel-width: clamp(240px, 18vw, 340px);
+            --palette-row-height: clamp(27px, 3.7vh, 37px);
+            --palette-swatch-size: clamp(21px, 2.7vh, 27px);
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            padding: 4px 12px 8px;
+        }
+        h1 {
+            margin: 4px 0 2px;
+            font-size: 30px;
+            line-height: 1.1;
+        }
+        p {
+            margin: 0 0 8px;
+            color: #a6adc8;
+        }
+        
+        .toolbar {
+            background-color: #313244;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            max-width: calc(100vw - 24px);
+            flex: 0 0 auto;
+        }
+        
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #45475a;
+            padding: 4px 10px;
+            border-radius: 5px;
+        }
+
+        .tool-group select, .tool-group input {
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            border: 1px solid #6c7086;
+            padding: 5px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        button {
+            background-color: #89b4fa;
+            color: #11111b;
+            border: none;
+            padding: 8px 13px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) { background-color: #b4befe; }
+        button:disabled {
+            background-color: #45475a;
+            color: #6c7086;
+            cursor: not-allowed;
+        }
+
+        #saveIndivBtn { background-color: #a6e3a1; }
+        #saveIndivBtn:hover:not(:disabled) { background-color: #b3f0af; }
+        
+        body[data-palette-mode="carpet"] {
+            --side-panel-width: 240px;
+        }
+
+        .editor-container {
+            display: grid;
+            grid-template-columns: auto var(--side-panel-width);
+            gap: 16px;
+            background-color: #313244;
+            padding: 12px;
+            border-radius: 8px;
+            justify-content: center;
+            align-items: stretch;
+            flex: 0 1 auto;
+            min-height: 0;
+            max-width: calc(100vw - 24px);
+        }
+
+        .canvas-container {
+            height: var(--workarea-height);
+            max-height: 700px;
+            width: var(--workarea-height);
+            max-width: 700px;
+            aspect-ratio: 1 / 1;
+            overflow: auto;
+            background-color: #11111b;
+            border: 2px solid #45475a;
+            display: flex;
+            scrollbar-width: thin;
+            scrollbar-color: #45475a #1e1e2e;
+            position: relative;
+        }
+
+        .canvas-wrapper {
+            margin: auto;
+            display: flex;
+            position: relative;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            display: block;
+        }
+
+        #mapCanvas { cursor: crosshair; }
+
+        #previewCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none; 
+        }
+
+        .palette {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .palette-row {
+            display: grid;
+            grid-template-columns: calc(var(--palette-swatch-size) + 10px) minmax(0, 1fr);
+            place-items: center;
+            justify-items: center;
+            gap: 5px;
+            height: var(--palette-row-height);
+            background: #45475a;
+            border: 2px solid transparent;
+            border-radius: 5px;
+            padding: 0 5px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #cdd6f4;
+        }
+        .palette-row.active { border-color: #a6e3a1; }
+        .palette-row span {
+            justify-self: start;
+            align-self: center;
+        }
+        .palette.carpet-mode {
+            width: 220px;
+            gap: 4px;
+            flex: 0 0 auto;
+            overflow-y: visible;
+        }
+        .palette.carpet-mode .palette-row {
+            grid-template-columns: calc(var(--palette-swatch-size) + 10px) minmax(0, 1fr);
+        }
+        .palette-row select {
+            min-width: 0;
+            width: 100%;
+            justify-self: stretch;
+            align-self: center;
+            height: calc(var(--palette-row-height) - 8px);
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            border: 1px solid #6c7086;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1;
+        }
+        .color-swatch {
+            width: var(--palette-swatch-size);
+            height: var(--palette-swatch-size);
+            justify-self: center;
+            align-self: center;
+            display: block;
+            border-radius: 4px;
+            border: 1px solid #11111b;
+        }
+
+        .palette-status {
+            flex: 0 0 auto;
+            font-size: 12px;
+            line-height: 1.25;
+            color: #a6adc8;
+            max-width: 340px;
+            min-height: 16px;
+            margin-bottom: 8px;
+            overflow-wrap: anywhere;
+        }
+        body[data-palette-mode="carpet"] #profileImportControl,
+        body[data-palette-mode="carpet"] #saveProfileBtn,
+        body[data-palette-mode="carpet"] #supportBlockLabel,
+        body[data-palette-mode="carpet"] #supportBlockSelect {
+            display: none;
+        }
+        .palette-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            height: var(--workarea-height);
+            max-height: 700px;
+            width: var(--side-panel-width);
+        }
+        .palette-panel h3 {
+            flex: 0 0 auto;
+            margin: 0 0 8px;
+        }
+        .palette-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex: 0 0 auto;
+            margin-bottom: 8px;
+        }
+        .palette-header h3 {
+            margin: 0;
+        }
+        .palette-header button {
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+        body[data-palette-mode="carpet"] .palette-panel {
+            width: var(--side-panel-width);
+        }
+
+        .license-notice {
+            position: fixed;
+            left: 10px;
+            bottom: 8px;
+            z-index: 20;
+            max-width: calc(100vw - 20px);
+            padding: 5px 8px;
+            border-radius: 5px;
+            background: rgba(30, 30, 46, 0.9);
+            border: 1px solid #45475a;
+            color: #a6adc8;
+            font-size: 11px;
+            line-height: 1.3;
+            pointer-events: auto;
+        }
+
+        .license-notice a {
+            color: #89b4fa;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .license-notice a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>NBT Mapart Editor</h1>
+    <p>Upload files. Left click to paint, right click to pan, scroll wheel to zoom.</p>
+
+    <div class="toolbar">
+        <label>NBT: <input type="file" id="fileInput" accept=".nbt" multiple></label>
+        <label id="profileImportControl">Profile: <input type="file" id="paletteProfileInput" accept=".txt,.pal,.palette"></label>
+        
+        <div class="tool-group">
+            <label>Tool:</label>
+            <select id="toolSelect">
+                <option value="brush">Brush</option>
+                <option value="line">Line</option>
+            </select>
+            
+            <label>Size:</label>
+            <input type="number" id="brushSize" value="1" min="1" max="20" style="width: 40px;">
+
+            <label id="supportBlockLabel">Support:</label>
+            <select id="supportBlockSelect"></select>
+        </div>
+
+        <button id="undoBtn" disabled>Undo</button>
+        <button id="redoBtn" disabled>Redo</button>
+        <button id="saveIndivBtn">Download Individual Files</button>
+        <button id="saveZipBtn">Download as ZIP Folder</button>
+        <button id="saveSingleBtn">Download as 1 NBT</button>
+    </div>
+
+    <div class="editor-container">
+        <div class="canvas-container" id="canvasContainer">
+            <div class="canvas-wrapper">
+                <canvas id="mapCanvas"></canvas>
+                <canvas id="previewCanvas"></canvas>
+            </div>
+        </div>
+        <div class="palette-panel">
+            <div class="palette-header">
+                <h3>Block Palette</h3>
+                <button id="saveProfileBtn">Save Profile</button>
+            </div>
+            <div class="palette-status" id="paletteImportStatus"></div>
+            <div class="palette" id="paletteContainer"></div>
+        </div>
+    </div>
+
+    <div class="license-notice">
+        <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank" rel="noopener noreferrer">GPL-3.0</a>
+        |
+        <a href="#" title="Replace this with your public source repository URL">Source</a>
+        |
+        Block/color database adapted from
+        <a href="https://github.com/mike2b2t/mapartcraft" target="_blank" rel="noopener noreferrer">MapArtCraft</a>
+    </div>
+
+    <script>
+        // --- 1. MINIMAL NBT PARSER & WRITER ---
+        class NBTParser {
+            constructor(buffer) {
+                this.view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+                this.offset = 0;
+                this.decoder = new TextDecoder('utf-8');
+            }
+            readTag() {
+                if (this.offset >= this.view.byteLength) return null;
+                const type = this.readByte();
+                if (type === 0) return { type: 0 };
+                const name = this.readString();
+                const value = this.readValue(type);
+                return { type, name, value };
+            }
+            readByte() { const v = this.view.getInt8(this.offset); this.offset += 1; return v; }
+            readShort() { const v = this.view.getInt16(this.offset); this.offset += 2; return v; }
+            readInt() { const v = this.view.getInt32(this.offset); this.offset += 4; return v; }
+            readLong() { const v = this.view.getBigInt64(this.offset); this.offset += 8; return v; }
+            readFloat() { const v = this.view.getFloat32(this.offset); this.offset += 4; return v; }
+            readDouble() { const v = this.view.getFloat64(this.offset); this.offset += 8; return v; }
+            readString() {
+                const len = this.readShort();
+                const bytes = new Uint8Array(this.view.buffer, this.view.byteOffset + this.offset, len);
+                this.offset += len;
+                return this.decoder.decode(bytes);
+            }
+            readValue(type) {
+                let len, val, elementType;
+                switch(type) {
+                    case 1: return this.readByte();
+                    case 2: return this.readShort();
+                    case 3: return this.readInt();
+                    case 4: return this.readLong();
+                    case 5: return this.readFloat();
+                    case 6: return this.readDouble();
+                    case 7: 
+                        len = this.readInt(); 
+                        val = new Int8Array(this.view.buffer, this.view.byteOffset + this.offset, len);
+                        this.offset += len; return val;
+                    case 8: return this.readString();
+                    case 9:
+                        elementType = this.readByte();
+                        len = this.readInt();
+                        val = { type: elementType, list: [] };
+                        for (let i = 0; i < len; i++) val.list.push(this.readValue(elementType));
+                        return val;
+                    case 10:
+                        val = {};
+                        while (true) {
+                            const tag = this.readTag();
+                            if (tag.type === 0) break;
+                            val[tag.name] = tag;
+                        }
+                        return val;
+                    case 11:
+                        len = this.readInt();
+                        val = new Int32Array(len);
+                        for(let i=0; i<len; i++) val[i] = this.readInt();
+                        return val;
+                    case 12:
+                        len = this.readInt();
+                        val = new BigInt64Array(len);
+                        for(let i=0; i<len; i++) val[i] = this.readLong();
+                        return val;
+                    default: throw new Error("Unknown NBT type: " + type);
+                }
+            }
+        }
+
+        class NBTWriter {
+            constructor() {
+                this.buffer = new Uint8Array(1024 * 1024 * 30); // 30MB buffer for huge files
+                this.view = new DataView(this.buffer.buffer);
+                this.offset = 0;
+                this.encoder = new TextEncoder('utf-8');
+            }
+            writeByte(v) { this.view.setInt8(this.offset, v); this.offset += 1; }
+            writeShort(v) { this.view.setInt16(this.offset, v); this.offset += 2; }
+            writeInt(v) { this.view.setInt32(this.offset, v); this.offset += 4; }
+            writeLong(v) { this.view.setBigInt64(this.offset, BigInt(v)); this.offset += 8; }
+            writeFloat(v) { this.view.setFloat32(this.offset, v); this.offset += 4; }
+            writeDouble(v) { this.view.setFloat64(this.offset, v); this.offset += 8; }
+            writeString(str) {
+                const bytes = this.encoder.encode(str);
+                this.writeShort(bytes.length);
+                this.buffer.set(bytes, this.offset);
+                this.offset += bytes.length;
+            }
+            writeTag(tag) {
+                this.writeByte(tag.type);
+                if (tag.type === 0) return;
+                this.writeString(tag.name || "");
+                this.writeValue(tag.type, tag.value);
+            }
+            writeValue(type, value) {
+                switch(type) {
+                    case 1: this.writeByte(value); break;
+                    case 2: this.writeShort(value); break;
+                    case 3: this.writeInt(value); break;
+                    case 4: this.writeLong(value); break;
+                    case 5: this.writeFloat(value); break;
+                    case 6: this.writeDouble(value); break;
+                    case 7:
+                        this.writeInt(value.length);
+                        this.buffer.set(new Int8Array(value.buffer, value.byteOffset, value.byteLength), this.offset);
+                        this.offset += value.length; break;
+                    case 8: this.writeString(value); break;
+                    case 9:
+                        this.writeByte(value.type);
+                        this.writeInt(value.list.length);
+                        for (let i = 0; i < value.list.length; i++) this.writeValue(value.type, value.list[i]);
+                        break;
+                    case 10:
+                        for (const key in value) this.writeTag(value[key]);
+                        this.writeByte(0); 
+                        break;
+                    case 11:
+                        this.writeInt(value.length);
+                        for(let i=0; i<value.length; i++) this.writeInt(value[i]); break;
+                    case 12:
+                        this.writeInt(value.length);
+                        for(let i=0; i<value.length; i++) this.writeLong(value[i]); break;
+                }
+            }
+            getOutput() { return new Uint8Array(this.buffer.buffer, 0, this.offset); }
+        }
+
+        // --- 2. EDITOR LOGIC ---
+        function stateKey(name, properties = {}) {
+            const propEntries = Object.keys(properties).sort().map(key => `${key}=${properties[key]}`);
+            return `${name}|${propEntries.join(';')}`;
+        }
+
+        function makeBlock(displayName, name, supportRequired = false, properties = {}, mapartPresetIndex = null) {
+            return {
+                displayName,
+                name,
+                properties,
+                supportRequired,
+                mapartPresetIndex,
+                key: stateKey(name, properties)
+            };
+        }
+
+        function titleWords(text) {
+            return text.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+        }
+
+        const MAP_COLOR_ROWS = [
+            { id: "grass", mapartId: 0, label: "Grass", hex: "#6D9930", blocks: [
+                [0, "minecraft:grass_block", {}, false],
+                [1, "minecraft:slime_block", {}, true],
+            ] },
+            { id: "sand", mapartId: 1, label: "Sand", hex: "#D5C98C", blocks: [
+                [0, "minecraft:sand", {}, true],
+                [1, "minecraft:sandstone", {}, false],
+                [2, "minecraft:birch_log", {"axis":"y"}, false],
+                [3, "minecraft:birch_planks", {}, false],
+                [4, "minecraft:birch_slab", {}, true],
+                [5, "minecraft:glowstone", {}, false],
+                [6, "minecraft:end_stone", {}, false],
+                [7, "minecraft:sandstone_slab", {}, true],
+                [8, "minecraft:end_stone_bricks", {}, false],
+                [9, "minecraft:end_stone_brick_slab", {}, true],
+                [10, "minecraft:bone_block", {}, false],
+                [11, "minecraft:birch_pressure_plate", {}, true],
+                [12, "minecraft:ochre_froglight", {}, false],
+            ] },
+            { id: "cobweb", mapartId: 2, label: "Cobweb", hex: "#ABABAB", blocks: [
+                [0, "minecraft:cobweb", {}, true],
+                [1, "minecraft:mushroom_stem", {}, false],
+                [2, "minecraft:white_candle", {}, true],
+            ] },
+            { id: "tnt", mapartId: 3, label: "TNT", hex: "#DC0000", blocks: [
+                [0, "minecraft:tnt", {}, false],
+                [1, "minecraft:redstone_block", {}, false],
+                [2, "minecraft:fire", {}, true],
+                [3, "minecraft:lava", {}, true],
+            ] },
+            { id: "ice", mapartId: 4, label: "Ice", hex: "#8A8ADC", blocks: [
+                [0, "minecraft:ice", {}, false],
+                [1, "minecraft:packed_ice", {}, false],
+                [2, "minecraft:blue_ice", {}, false],
+            ] },
+            { id: "iron", mapartId: 5, label: "Iron", hex: "#909090", blocks: [
+                [0, "minecraft:iron_block", {}, false],
+                [1, "minecraft:iron_trapdoor", {"half":"bottom"}, true],
+                [2, "minecraft:heavy_weighted_pressure_plate", {}, true],
+                [4, "minecraft:brewing_stand", {}, true],
+                [5, "minecraft:grindstone", {}, true],
+                [6, "minecraft:pale_oak_leaves", {"persistent":"true"}, false],
+            ] },
+            { id: "leaves", mapartId: 6, label: "Leaves", hex: "#006A00", blocks: [
+                [0, "minecraft:oak_leaves", {"persistent":"true"}, false],
+                [1, "minecraft:spruce_leaves", {"persistent":"true"}, false],
+                [2, "minecraft:birch_leaves", {"persistent":"true"}, false],
+                [3, "minecraft:jungle_leaves", {"persistent":"true"}, false],
+                [4, "minecraft:acacia_leaves", {"persistent":"true"}, false],
+                [5, "minecraft:dark_oak_leaves", {"persistent":"true"}, false],
+                [6, "minecraft:azalea_leaves", {"persistent":"true"}, false],
+                [7, "minecraft:bamboo_block", {"axis":"x"}, false],
+                [8, "minecraft:pink_petals", {}, true],
+                [9, "minecraft:wildflowers", {}, true],
+                [10, "minecraft:mangrove_leaves", {"persistent":"true"}, false],
+            ] },
+            { id: "clay", mapartId: 7, label: "Clay", hex: "#8D909E", blocks: [
+                [0, "minecraft:clay", {}, false],
+            ] },
+            { id: "dirt", mapartId: 8, label: "Dirt", hex: "#825E42", blocks: [
+                [0, "minecraft:jungle_log", {"axis":"y"}, false],
+                [1, "minecraft:jungle_planks", {}, false],
+                [2, "minecraft:jungle_slab", {}, true],
+                [3, "minecraft:dirt", {}, false],
+                [4, "minecraft:coarse_dirt", {}, false],
+                [5, "minecraft:jukebox", {}, false],
+                [6, "minecraft:granite", {}, false],
+                [7, "minecraft:granite_slab", {}, true],
+                [8, "minecraft:rooted_dirt", {}, false],
+                [9, "minecraft:jungle_pressure_plate", {}, true],
+                [10, "minecraft:packed_mud", {}, false],
+                [11, "minecraft:brown_mushroom_block", {}, false],
+            ] },
+            { id: "stone", mapartId: 9, label: "Stone", hex: "#606060", blocks: [
+                [0, "minecraft:cobblestone", {}, false],
+                [1, "minecraft:stone", {}, false],
+                [2, "minecraft:stone_slab", {}, true],
+                [3, "minecraft:cobblestone_slab", {}, true],
+                [4, "minecraft:andesite", {}, false],
+                [5, "minecraft:bedrock", {}, false],
+                [6, "minecraft:acacia_log", {"axis":"x"}, false],
+                [7, "minecraft:gravel", {}, true],
+                [8, "minecraft:mossy_cobblestone", {}, false],
+                [9, "minecraft:mossy_cobblestone_slab", {}, true],
+                [10, "minecraft:smooth_stone_slab", {}, true],
+                [11, "minecraft:stone_bricks", {}, false],
+                [12, "minecraft:stone_brick_slab", {}, true],
+                [13, "minecraft:andesite_slab", {}, true],
+                [14, "minecraft:stone_pressure_plate", {}, true],
+                [15, "minecraft:pale_oak_log", {"axis":"x"}, false],
+                [16, "minecraft:smooth_stone", {}, false],
+            ] },
+            { id: "water", mapartId: 10, label: "Water", hex: "#3737DC", blocks: [
+                [0, "minecraft:water", {}, true],
+                [1, "minecraft:oak_leaves", {"persistent":"true","waterlogged":"true"}, false],
+                [2, "minecraft:spruce_leaves", {"persistent":"true","waterlogged":"true"}, false],
+                [3, "minecraft:birch_leaves", {"persistent":"true","waterlogged":"true"}, false],
+                [4, "minecraft:jungle_leaves", {"persistent":"true","waterlogged":"true"}, false],
+                [5, "minecraft:acacia_leaves", {"persistent":"true","waterlogged":"true"}, false],
+                [6, "minecraft:dark_oak_leaves", {"persistent":"true","waterlogged":"true"}, false],
+                [7, "minecraft:azalea_leaves", {"persistent":"true","waterlogged":"true"}, false],
+                [8, "minecraft:mangrove_leaves", {"persistent":"true","waterlogged":"true"}, false],
+            ] },
+            { id: "oak", mapartId: 11, label: "Oak", hex: "#7B663E", blocks: [
+                [0, "minecraft:oak_log", {"axis":"y"}, false],
+                [1, "minecraft:oak_planks", {}, false],
+                [2, "minecraft:oak_slab", {}, true],
+                [3, "minecraft:crafting_table", {}, false],
+                [4, "minecraft:oak_pressure_plate", {}, true],
+                [5, "minecraft:chiseled_bookshelf", {}, false],
+                [6, "minecraft:composter", {}, false],
+                [7, "minecraft:bookshelf", {}, false],
+            ] },
+            { id: "birch", mapartId: 12, label: "Birch", hex: "#DCD9D3", blocks: [
+                [0, "minecraft:birch_log", {"axis":"x"}, false],
+                [1, "minecraft:diorite", {}, false],
+                [2, "minecraft:quartz_block", {}, false],
+                [3, "minecraft:quartz_slab", {}, true],
+                [4, "minecraft:sea_lantern", {}, false],
+                [5, "minecraft:diorite_slab", {}, true],
+                [6, "minecraft:pale_oak_log", {"axis":"y"}, false],
+                [7, "minecraft:pale_oak_planks", {}, false],
+                [8, "minecraft:pale_oak_slab", {}, true],
+                [9, "minecraft:pale_oak_pressure_plate", {}, true],
+                [10, "minecraft:target", {}, true],
+            ] },
+            { id: "white", mapartId: 13, label: "White", hex: "#DCDCDC", blocks: [
+                [0, "minecraft:white_wool", {}, false],
+                [1, "minecraft:white_carpet", {}, true],
+                [2, "minecraft:white_stained_glass", {}, true],
+                [3, "minecraft:white_concrete", {}, false],
+                [4, "minecraft:white_concrete_powder", {}, true],
+                [5, "minecraft:white_glazed_terracotta", {}, false],
+                [6, "minecraft:snow_block", {}, false],
+                [7, "minecraft:snow", {}, true],
+            ] },
+            { id: "orange", mapartId: 14, label: "Orange", hex: "#BA6D2C", blocks: [
+                [0, "minecraft:orange_wool", {}, false],
+                [1, "minecraft:orange_carpet", {}, true],
+                [2, "minecraft:orange_stained_glass", {}, true],
+                [3, "minecraft:orange_concrete", {}, false],
+                [4, "minecraft:orange_concrete_powder", {}, true],
+                [5, "minecraft:orange_glazed_terracotta", {}, false],
+                [6, "minecraft:acacia_log", {"axis":"y"}, false],
+                [7, "minecraft:acacia_planks", {}, false],
+                [8, "minecraft:acacia_slab", {}, true],
+                [9, "minecraft:red_sand", {}, true],
+                [10, "minecraft:red_sandstone", {}, false],
+                [11, "minecraft:terracotta", {}, false],
+                [12, "minecraft:red_sandstone_slab", {}, true],
+                [13, "minecraft:honey_block", {}, false],
+                [14, "minecraft:honeycomb_block", {}, false],
+                [15, "minecraft:pumpkin", {}, true],
+                [16, "minecraft:raw_copper_block", {}, false],
+                [17, "minecraft:waxed_copper_block", {}, false],
+                [18, "minecraft:waxed_cut_copper_slab", {}, true],
+                [19, "minecraft:acacia_pressure_plate", {}, true],
+            ] },
+            { id: "magenta", mapartId: 15, label: "Magenta", hex: "#9941BA", blocks: [
+                [0, "minecraft:magenta_wool", {}, false],
+                [1, "minecraft:magenta_carpet", {}, true],
+                [2, "minecraft:magenta_stained_glass", {}, true],
+                [3, "minecraft:magenta_concrete", {}, false],
+                [4, "minecraft:magenta_concrete_powder", {}, true],
+                [5, "minecraft:magenta_glazed_terracotta", {}, false],
+                [6, "minecraft:purpur_block", {}, false],
+                [7, "minecraft:purpur_slab", {}, true],
+            ] },
+            { id: "light_blue", mapartId: 16, label: "Light Blue", hex: "#5884BA", blocks: [
+                [0, "minecraft:light_blue_wool", {}, false],
+                [1, "minecraft:light_blue_carpet", {}, true],
+                [2, "minecraft:light_blue_stained_glass", {}, true],
+                [3, "minecraft:light_blue_concrete", {}, false],
+                [4, "minecraft:light_blue_concrete_powder", {}, true],
+                [5, "minecraft:light_blue_glazed_terracotta", {}, false],
+                [6, "minecraft:soul_fire", {}, true],
+            ] },
+            { id: "yellow", mapartId: 17, label: "Yellow", hex: "#C5C52C", blocks: [
+                [0, "minecraft:yellow_wool", {}, false],
+                [1, "minecraft:yellow_carpet", {}, true],
+                [2, "minecraft:yellow_stained_glass", {}, true],
+                [3, "minecraft:yellow_concrete", {}, false],
+                [4, "minecraft:yellow_concrete_powder", {}, true],
+                [5, "minecraft:yellow_glazed_terracotta", {}, false],
+                [6, "minecraft:hay_block", {}, false],
+                [7, "minecraft:sponge", {}, false],
+                [8, "minecraft:bamboo_block", {"axis":"y"}, false],
+                [9, "minecraft:bamboo_planks", {}, false],
+                [10, "minecraft:bamboo_slab", {}, true],
+                [11, "minecraft:bamboo_mosaic", {}, false],
+                [12, "minecraft:bamboo_mosaic_slab", {}, true],
+                [13, "minecraft:bamboo_pressure_plate", {}, true],
+            ] },
+            { id: "lime", mapartId: 18, label: "Lime", hex: "#6DB015", blocks: [
+                [0, "minecraft:lime_wool", {}, false],
+                [1, "minecraft:lime_carpet", {}, true],
+                [2, "minecraft:lime_stained_glass", {}, true],
+                [3, "minecraft:lime_concrete", {}, false],
+                [4, "minecraft:lime_concrete_powder", {}, true],
+                [5, "minecraft:lime_glazed_terracotta", {}, false],
+                [6, "minecraft:melon", {}, false],
+            ] },
+            { id: "pink", mapartId: 19, label: "Pink", hex: "#D06D8E", blocks: [
+                [0, "minecraft:pink_wool", {}, false],
+                [1, "minecraft:pink_carpet", {}, true],
+                [2, "minecraft:pink_stained_glass", {}, true],
+                [3, "minecraft:pink_concrete", {}, false],
+                [4, "minecraft:pink_concrete_powder", {}, true],
+                [5, "minecraft:pink_glazed_terracotta", {}, false],
+                [6, "minecraft:pearlescent_froglight", {}, false],
+                [7, "minecraft:cherry_leaves", {"persistent":"true"}, false],
+            ] },
+            { id: "gray", mapartId: 20, label: "Gray", hex: "#414141", blocks: [
+                [0, "minecraft:gray_wool", {}, false],
+                [1, "minecraft:gray_carpet", {}, true],
+                [2, "minecraft:gray_stained_glass", {}, true],
+                [3, "minecraft:gray_concrete", {}, false],
+                [4, "minecraft:gray_concrete_powder", {}, true],
+                [5, "minecraft:gray_glazed_terracotta", {}, false],
+                [6, "minecraft:dead_tube_coral_block", {}, false],
+                [7, "minecraft:dead_brain_coral_block", {}, false],
+                [8, "minecraft:dead_bubble_coral_block", {}, false],
+                [9, "minecraft:dead_fire_coral_block", {}, false],
+                [10, "minecraft:dead_horn_coral_block", {}, false],
+                [11, "minecraft:tinted_glass", {}, false],
+                [12, "minecraft:acacia_wood", {}, false],
+            ] },
+            { id: "light_gray", mapartId: 21, label: "Light Gray", hex: "#848484", blocks: [
+                [0, "minecraft:light_gray_wool", {}, false],
+                [1, "minecraft:light_gray_carpet", {}, true],
+                [2, "minecraft:light_gray_stained_glass", {}, true],
+                [3, "minecraft:light_gray_concrete", {}, false],
+                [4, "minecraft:light_gray_concrete_powder", {}, true],
+                [5, "minecraft:light_gray_glazed_terracotta", {}, false],
+                [6, "minecraft:pale_moss_block", {}, false],
+                [7, "minecraft:pale_moss_carpet", {}, true],
+            ] },
+            { id: "cyan", mapartId: 22, label: "Cyan", hex: "#416D84", blocks: [
+                [0, "minecraft:cyan_wool", {}, false],
+                [1, "minecraft:cyan_carpet", {}, true],
+                [2, "minecraft:cyan_stained_glass", {}, true],
+                [3, "minecraft:cyan_concrete", {}, false],
+                [4, "minecraft:cyan_concrete_powder", {}, true],
+                [5, "minecraft:cyan_glazed_terracotta", {}, false],
+                [6, "minecraft:prismarine", {}, false],
+                [7, "minecraft:prismarine_slab", {}, true],
+                [8, "minecraft:warped_roots", {}, true],
+                [9, "minecraft:warped_fungus", {}, true],
+            ] },
+            { id: "purple", mapartId: 23, label: "Purple", hex: "#6D3699", blocks: [
+                [0, "minecraft:purple_wool", {}, false],
+                [1, "minecraft:purple_carpet", {}, true],
+                [2, "minecraft:purple_stained_glass", {}, true],
+                [3, "minecraft:purple_concrete", {}, false],
+                [4, "minecraft:purple_concrete_powder", {}, true],
+                [5, "minecraft:purple_glazed_terracotta", {}, false],
+                [6, "minecraft:mycelium", {}, false],
+                [7, "minecraft:amethyst_block", {}, false],
+            ] },
+            { id: "blue", mapartId: 24, label: "Blue", hex: "#2C4199", blocks: [
+                [0, "minecraft:blue_wool", {}, false],
+                [1, "minecraft:blue_carpet", {}, true],
+                [2, "minecraft:blue_stained_glass", {}, true],
+                [3, "minecraft:blue_concrete", {}, false],
+                [4, "minecraft:blue_concrete_powder", {}, true],
+                [5, "minecraft:blue_glazed_terracotta", {}, false],
+            ] },
+            { id: "brown", mapartId: 25, label: "Brown", hex: "#58412C", blocks: [
+                [0, "minecraft:brown_wool", {}, false],
+                [1, "minecraft:brown_carpet", {}, true],
+                [2, "minecraft:brown_stained_glass", {}, true],
+                [3, "minecraft:brown_concrete", {}, false],
+                [4, "minecraft:brown_concrete_powder", {}, true],
+                [5, "minecraft:brown_glazed_terracotta", {}, false],
+                [6, "minecraft:dark_oak_log", {"axis":"y"}, false],
+                [7, "minecraft:dark_oak_planks", {}, false],
+                [8, "minecraft:dark_oak_slab", {}, true],
+                [9, "minecraft:spruce_log", {"axis":"x"}, false],
+                [10, "minecraft:soul_sand", {}, false],
+                [11, "minecraft:soul_soil", {}, false],
+                [12, "minecraft:dark_oak_pressure_plate", {}, true],
+                [13, "minecraft:leaf_litter", {}, true],
+            ] },
+            { id: "green", mapartId: 26, label: "Green", hex: "#586D2C", blocks: [
+                [0, "minecraft:green_wool", {}, false],
+                [1, "minecraft:green_carpet", {}, true],
+                [2, "minecraft:green_stained_glass", {}, true],
+                [3, "minecraft:green_concrete", {}, false],
+                [4, "minecraft:green_concrete_powder", {}, true],
+                [5, "minecraft:green_glazed_terracotta", {}, false],
+                [6, "minecraft:dried_kelp_block", {}, false],
+                [7, "minecraft:moss_block", {}, false],
+                [8, "minecraft:moss_carpet", {}, true],
+            ] },
+            { id: "red", mapartId: 27, label: "Red", hex: "#842C2C", blocks: [
+                [0, "minecraft:red_wool", {}, false],
+                [1, "minecraft:red_carpet", {}, true],
+                [2, "minecraft:red_stained_glass", {}, true],
+                [3, "minecraft:red_concrete", {}, false],
+                [4, "minecraft:red_concrete_powder", {}, true],
+                [5, "minecraft:red_glazed_terracotta", {}, false],
+                [6, "minecraft:bricks", {}, false],
+                [7, "minecraft:nether_wart_block", {}, false],
+                [8, "minecraft:brick_slab", {}, true],
+                [9, "minecraft:shroomlight", {}, false],
+                [10, "minecraft:mangrove_log", {"axis":"y"}, false],
+                [11, "minecraft:mangrove_planks", {}, false],
+                [12, "minecraft:mangrove_slab", {}, true],
+                [13, "minecraft:mangrove_pressure_plate", {}, true],
+                [14, "minecraft:red_mushroom_block", {}, false],
+            ] },
+            { id: "black", mapartId: 28, label: "Black", hex: "#151515", blocks: [
+                [0, "minecraft:black_wool", {}, false],
+                [1, "minecraft:black_carpet", {}, true],
+                [2, "minecraft:black_stained_glass", {}, true],
+                [3, "minecraft:black_concrete", {}, false],
+                [4, "minecraft:black_concrete_powder", {}, true],
+                [5, "minecraft:black_glazed_terracotta", {}, false],
+                [6, "minecraft:coal_block", {}, false],
+                [7, "minecraft:obsidian", {}, false],
+                [8, "minecraft:crying_obsidian", {}, false],
+                [9, "minecraft:blackstone", {}, false],
+                [10, "minecraft:blackstone_slab", {}, true],
+                [11, "minecraft:netherite_block", {}, false],
+                [12, "minecraft:basalt", {}, false],
+                [13, "minecraft:polished_blackstone_pressure_plate", {}, true],
+                [14, "minecraft:sculk", {}, false],
+                [15, "minecraft:sculk_catalyst", {}, false],
+                [16, "minecraft:sculk_shrieker", {}, false],
+                [17, "minecraft:smooth_basalt", {}, false],
+            ] },
+            { id: "gold", mapartId: 29, label: "Gold", hex: "#D7CD42", blocks: [
+                [0, "minecraft:gold_block", {}, false],
+                [1, "minecraft:light_weighted_pressure_plate", {}, true],
+                [2, "minecraft:raw_gold_block", {}, false],
+            ] },
+            { id: "diamond", mapartId: 30, label: "Diamond", hex: "#4FBCB7", blocks: [
+                [0, "minecraft:diamond_block", {}, false],
+                [1, "minecraft:prismarine_bricks", {}, false],
+                [2, "minecraft:dark_prismarine", {}, false],
+                [3, "minecraft:beacon", {}, true],
+                [4, "minecraft:prismarine_brick_slab", {}, true],
+                [5, "minecraft:dark_prismarine_slab", {}, true],
+            ] },
+            { id: "lapis", mapartId: 31, label: "Lapis", hex: "#3F6EDC", blocks: [
+                [0, "minecraft:lapis_block", {}, false],
+            ] },
+            { id: "emerald", mapartId: 32, label: "Emerald", hex: "#00BB32", blocks: [
+                [0, "minecraft:emerald_block", {}, false],
+            ] },
+            { id: "spruce", mapartId: 33, label: "Spruce", hex: "#6F4A2A", blocks: [
+                [0, "minecraft:spruce_log", {"axis":"y"}, false],
+                [1, "minecraft:spruce_planks", {}, false],
+                [2, "minecraft:spruce_slab", {}, true],
+                [3, "minecraft:oak_log", {"axis":"x"}, false],
+                [4, "minecraft:jungle_log", {"axis":"x"}, false],
+                [5, "minecraft:podzol", {}, false],
+                [6, "minecraft:spruce_pressure_plate", {}, true],
+                [7, "minecraft:mangrove_log", {"axis":"x"}, false],
+                [8, "minecraft:mangrove_roots", {}, false],
+            ] },
+            { id: "nether", mapartId: 34, label: "Nether", hex: "#600100", blocks: [
+                [0, "minecraft:netherrack", {}, false],
+                [1, "minecraft:nether_bricks", {}, false],
+                [2, "minecraft:nether_brick_slab", {}, true],
+                [3, "minecraft:magma_block", {}, false],
+                [4, "minecraft:red_nether_bricks", {}, false],
+                [5, "minecraft:red_nether_brick_slab", {}, true],
+                [6, "minecraft:crimson_roots", {}, true],
+                [7, "minecraft:crimson_fungus", {}, true],
+            ] },
+            { id: "white_terracotta", mapartId: 35, label: "White Terracotta", hex: "#B4988A", blocks: [
+                [0, "minecraft:white_terracotta", {}, false],
+                [1, "minecraft:calcite", {}, false],
+                [2, "minecraft:cherry_planks", {}, false],
+                [3, "minecraft:cherry_slab", {}, true],
+                [4, "minecraft:cherry_log", {"axis":"y"}, false],
+                [5, "minecraft:stripped_cherry_log", {"axis":"y"}, false],
+                [6, "minecraft:cherry_pressure_plate", {}, true],
+            ] },
+            { id: "orange_terracotta", mapartId: 36, label: "Orange Terracotta", hex: "#89461F", blocks: [
+                [0, "minecraft:orange_terracotta", {}, false],
+                [1, "minecraft:redstone_lamp", {}, false],
+                [2, "minecraft:resin_block", {}, false],
+                [3, "minecraft:resin_bricks", {}, false],
+                [4, "minecraft:resin_brick_slab", {}, true],
+                [5, "minecraft:resin_clump", {"down":"true"}, true],
+            ] },
+            { id: "magenta_terracotta", mapartId: 37, label: "Magenta Terracotta", hex: "#804B5D", blocks: [
+                [0, "minecraft:magenta_terracotta", {}, false],
+            ] },
+            { id: "light_blue_terracotta", mapartId: 38, label: "Light Blue Terracotta", hex: "#605D77", blocks: [
+                [0, "minecraft:light_blue_terracotta", {}, false],
+            ] },
+            { id: "yellow_terracotta", mapartId: 39, label: "Yellow Terracotta", hex: "#A0721F", blocks: [
+                [0, "minecraft:yellow_terracotta", {}, false],
+            ] },
+            { id: "lime_terracotta", mapartId: 40, label: "Lime Terracotta", hex: "#58642D", blocks: [
+                [0, "minecraft:lime_terracotta", {}, false],
+            ] },
+            { id: "pink_terracotta", mapartId: 41, label: "Pink Terracotta", hex: "#8A4243", blocks: [
+                [0, "minecraft:pink_terracotta", {}, false],
+                [1, "minecraft:stripped_cherry_log", {"axis":"x"}, false],
+                [2, "minecraft:stripped_cherry_wood", {}, false],
+            ] },
+            { id: "gray_terracotta", mapartId: 42, label: "Gray Terracotta", hex: "#31231E", blocks: [
+                [0, "minecraft:gray_terracotta", {}, false],
+                [1, "minecraft:tuff", {}, false],
+                [2, "minecraft:cherry_log", {"axis":"x"}, false],
+                [3, "minecraft:cherry_wood", {}, false],
+                [4, "minecraft:tuff_slab", {}, true],
+            ] },
+            { id: "light_gray_terracotta", mapartId: 43, label: "Light Gray Terracotta", hex: "#745C54", blocks: [
+                [0, "minecraft:light_gray_terracotta", {}, false],
+                [1, "minecraft:waxed_exposed_copper", {}, false],
+                [2, "minecraft:waxed_exposed_cut_copper_slab", {}, true],
+                [3, "minecraft:mud_bricks", {}, false],
+                [4, "minecraft:mud_brick_slab", {}, true],
+            ] },
+            { id: "cyan_terracotta", mapartId: 44, label: "Cyan Terracotta", hex: "#4B4F4F", blocks: [
+                [0, "minecraft:cyan_terracotta", {}, false],
+                [1, "minecraft:mud", {}, false],
+            ] },
+            { id: "purple_terracotta", mapartId: 45, label: "Purple Terracotta", hex: "#693E4B", blocks: [
+                [0, "minecraft:purple_terracotta", {}, false],
+            ] },
+            { id: "blue_terracotta", mapartId: 46, label: "Blue Terracotta", hex: "#41354F", blocks: [
+                [0, "minecraft:blue_terracotta", {}, false],
+            ] },
+            { id: "brown_terracotta", mapartId: 47, label: "Brown Terracotta", hex: "#412B1E", blocks: [
+                [0, "minecraft:brown_terracotta", {}, false],
+                [1, "minecraft:dripstone_block", {}, false],
+                [2, "minecraft:pointed_dripstone", {}, true],
+            ] },
+            { id: "green_terracotta", mapartId: 48, label: "Green Terracotta", hex: "#414624", blocks: [
+                [0, "minecraft:green_terracotta", {}, false],
+                [1, "minecraft:closed_eyeblossom", {}, true],
+            ] },
+            { id: "red_terracotta", mapartId: 49, label: "Red Terracotta", hex: "#7A3327", blocks: [
+                [0, "minecraft:red_terracotta", {}, false],
+                [1, "minecraft:decorated_pot", {}, true],
+            ] },
+            { id: "black_terracotta", mapartId: 50, label: "Black Terracotta", hex: "#1F120D", blocks: [
+                [0, "minecraft:black_terracotta", {}, false],
+            ] },
+            { id: "crimson_nylium", mapartId: 51, label: "Crimson Nylium", hex: "#A3292A", blocks: [
+                [0, "minecraft:crimson_nylium", {}, false],
+            ] },
+            { id: "crimson_stem", mapartId: 52, label: "Crimson Stem", hex: "#7F3653", blocks: [
+                [0, "minecraft:crimson_stem", {}, false],
+                [1, "minecraft:stripped_crimson_stem", {}, false],
+                [2, "minecraft:crimson_planks", {}, false],
+                [3, "minecraft:crimson_slab", {}, true],
+                [4, "minecraft:crimson_pressure_plate", {}, true],
+            ] },
+            { id: "crimson_hyphae", mapartId: 53, label: "Crimson Hyphae", hex: "#4F1519", blocks: [
+                [0, "minecraft:crimson_hyphae", {}, false],
+                [1, "minecraft:stripped_crimson_hyphae", {}, false],
+            ] },
+            { id: "warped_nylium", mapartId: 54, label: "Warped Nylium", hex: "#126C73", blocks: [
+                [0, "minecraft:warped_nylium", {}, false],
+                [1, "minecraft:waxed_oxidized_copper", {}, false],
+                [2, "minecraft:waxed_oxidized_cut_copper_slab", {}, true],
+            ] },
+            { id: "warped_stem", mapartId: 55, label: "Warped Stem", hex: "#327A78", blocks: [
+                [0, "minecraft:warped_stem", {}, false],
+                [1, "minecraft:stripped_warped_stem", {}, false],
+                [2, "minecraft:warped_planks", {}, false],
+                [3, "minecraft:warped_slab", {}, true],
+                [4, "minecraft:waxed_weathered_copper", {}, false],
+                [5, "minecraft:waxed_weathered_cut_copper_slab", {}, true],
+                [6, "minecraft:warped_pressure_plate", {}, true],
+            ] },
+            { id: "warped_hyphae", mapartId: 56, label: "Warped Hyphae", hex: "#4A2535", blocks: [
+                [0, "minecraft:warped_hyphae", {}, false],
+                [1, "minecraft:stripped_warped_hyphae", {}, false],
+            ] },
+            { id: "warped_wart", mapartId: 57, label: "Warped Wart", hex: "#119B72", blocks: [
+                [0, "minecraft:warped_wart_block", {}, false],
+            ] },
+            { id: "deepslate", mapartId: 58, label: "Deepslate", hex: "#565656", blocks: [
+                [0, "minecraft:deepslate", {}, false],
+                [1, "minecraft:cobbled_deepslate", {}, false],
+                [2, "minecraft:cobbled_deepslate_slab", {}, true],
+            ] },
+            { id: "raw_iron", mapartId: 59, label: "Raw Iron", hex: "#BA967E", blocks: [
+                [0, "minecraft:raw_iron_block", {}, false],
+            ] },
+            { id: "glow_lichen", mapartId: 60, label: "Glow Lichen", hex: "#6D9081", blocks: [
+                [0, "minecraft:glow_lichen", {"down":"true"}, true],
+                [1, "minecraft:verdant_froglight", {}, false],
+            ] },
+        ];
+
+        function blockDisplayName(name, properties = {}) {
+            const baseName = titleWords(name.replace(/^minecraft:/, ""));
+            const notes = [];
+            if (properties.axis) notes.push(`axis ${properties.axis}`);
+            Object.keys(properties).sort().forEach(key => {
+                if (key !== "axis") notes.push(`${key} ${properties[key]}`);
+            });
+            return notes.length ? `${baseName} (${notes.join(", ")})` : baseName;
+        }
+
+        const MAP_COLOR_DATABASE = MAP_COLOR_ROWS.map(row => ({
+            id: row.id,
+            mapartId: row.mapartId,
+            label: row.label,
+            hex: row.hex,
+            blocks: row.blocks.map(([mapartPresetIndex, name, properties, supportRequired]) =>
+                makeBlock(blockDisplayName(name, properties), name, supportRequired, properties, mapartPresetIndex)
+            )
+        }));
+
+        const MAP_COLOR_BASE_HEX_OVERRIDES = new Map([
+            [6, "#007C00"],
+            [7, "#A4A8B8"],
+            [30, "#5CDBD5"],
+            [35, "#D1B1A1"],
+            [40, "#677535"],
+            [45, "#7A4958"],
+            [50, "#251610"],
+            [54, "#167E86"],
+            [56, "#562C3E"],
+            [59, "#D8AF93"]
+        ]);
+
+        const SUPPORT_BLOCK_OPTIONS = [
+            makeBlock("Cobblestone", "minecraft:cobblestone"),
+            makeBlock("Netherrack", "minecraft:netherrack"),
+            makeBlock("Stone", "minecraft:stone"),
+            makeBlock("Dirt", "minecraft:dirt"),
+            makeBlock("Deepslate", "minecraft:deepslate")
+        ];
+
+        const COLORS_BY_ID = new Map();
+        const COLOR_BY_MAPART_ID = new Map();
+        const BLOCK_BY_KEY = new Map();
+        const MAPART_BLOCK_BY_COLOR_AND_PRESET = new Map();
+        const selectedBlockByColorId = {};
+
+        MAP_COLOR_DATABASE.forEach(color => {
+            COLORS_BY_ID.set(color.id, color);
+            COLOR_BY_MAPART_ID.set(color.mapartId, color);
+            selectedBlockByColorId[color.id] = color.blocks[0].key;
+            color.blocks.forEach(block => {
+                block.colorId = color.id;
+                BLOCK_BY_KEY.set(block.key, { color, block });
+                if (block.mapartPresetIndex !== null) {
+                    MAPART_BLOCK_BY_COLOR_AND_PRESET.set(`${color.mapartId}:${block.mapartPresetIndex}`, block);
+                }
+            });
+        });
+
+        let loadedFiles = []; 
+        let mapWidth = 0, mapHeight = 0;
+        let gridMap = []; 
+        let originalFileName = "mapartcraft_export";
+        
+        let selectedColor = COLORS_BY_ID.get("white") || MAP_COLOR_DATABASE[0];
+        let selectedSupportBlock = SUPPORT_BLOCK_OPTIONS[0];
+        let paletteMode = "fullblock";
+        
+        // Input States
+        let isDrawing = false;
+        let isPanning = false;
+        let hasDrawnInCurrentStroke = false;
+        
+        // Tool States
+        let activeTool = 'brush';
+        let lastMouseX = -1;
+        let lastMouseZ = -1;
+        let lineStartX = -1;
+        let lineStartZ = -1;
+        let previewSnapshot = null;
+        
+        // Panning coordinates
+        let startPanX = 0;
+        let startPanY = 0;
+        let startScrollLeft = 0;
+        let startScrollTop = 0;
+        let currentScale = 4;
+        
+        // History State for Undo/Redo
+        let undoStack = [];
+        let redoStack = [];
+        
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewCtx = previewCanvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const paletteImportStatus = document.getElementById('paletteImportStatus');
+        const supportBlockSelect = document.getElementById('supportBlockSelect');
+
+        document.getElementById('toolSelect').addEventListener('change', (e) => {
+            activeTool = e.target.value;
+            updateCursorPreview(lastMouseX, lastMouseZ);
+        });
+
+        document.getElementById('brushSize').addEventListener('input', () => {
+            updateCursorPreview(lastMouseX, lastMouseZ);
+        });
+
+        document.body.dataset.paletteMode = paletteMode;
+
+        function isCarpetBlockOption(block) {
+            return !!(block && /_carpet$/.test(block.name));
+        }
+
+        function carpetBlockForColor(color) {
+            return color.blocks.find(isCarpetBlockOption) || null;
+        }
+
+        function paletteColorsForMode() {
+            return paletteMode === "carpet"
+                ? MAP_COLOR_DATABASE.filter(color => carpetBlockForColor(color))
+                : MAP_COLOR_DATABASE;
+        }
+
+        function usesBlockPaletteMode() {
+            return paletteMode === "fullblock" || paletteMode === "staircased";
+        }
+
+        function rgbFromHex(hex) {
+            return [
+                parseInt(hex.slice(1, 3), 16),
+                parseInt(hex.slice(3, 5), 16),
+                parseInt(hex.slice(5, 7), 16)
+            ];
+        }
+
+        function baseRgbFromNormalHex(hex) {
+            return rgbFromHex(hex).map(channel => {
+                for (let base = 0; base <= 255; base++) {
+                    if (Math.floor(base * 220 / 255) === channel) return base;
+                }
+                return Math.max(0, Math.min(255, Math.round(channel * 255 / 220)));
+            });
+        }
+
+        function baseRgbForColor(color) {
+            const baseHex = MAP_COLOR_BASE_HEX_OVERRIDES.get(color.mapartId);
+            if (baseHex) return rgbFromHex(baseHex);
+            if (!color.baseRgb) color.baseRgb = baseRgbFromNormalHex(color.hex);
+            return color.baseRgb;
+        }
+
+        function rgbForMapTone(color, tone = "normal") {
+            if (tone === "normal") return rgbFromHex(color.hex);
+
+            const brightness = tone === "light" ? 255 : tone === "dark" ? 180 : 135;
+            return baseRgbForColor(color).map(channel => Math.floor(channel * brightness / 255));
+        }
+
+        function rgbToPaletteHex(rgb) {
+            return "FF" + rgb.map(channel =>
+                Math.max(0, Math.min(255, channel)).toString(16).padStart(2, "0").toUpperCase()
+            ).join("");
+        }
+
+        function ensureSelectedColorForMode() {
+            const colors = paletteColorsForMode();
+            if (!colors.includes(selectedColor)) {
+                selectedColor = colors[0] || MAP_COLOR_DATABASE[0];
+            }
+        }
+
+        function selectedBlockForColor(color) {
+            if (paletteMode === "carpet") {
+                return carpetBlockForColor(color) || color.blocks[0];
+            }
+            return color.blocks.find(block => block.key === selectedBlockByColorId[color.id]) || color.blocks[0];
+        }
+
+        function setPaletteStatus(message) {
+            paletteImportStatus.textContent = message || "";
+        }
+
+        function renderSupportSelect() {
+            supportBlockSelect.innerHTML = "";
+            SUPPORT_BLOCK_OPTIONS.forEach(block => {
+                const option = document.createElement('option');
+                option.value = block.key;
+                option.textContent = block.displayName;
+                supportBlockSelect.appendChild(option);
+            });
+            supportBlockSelect.value = selectedSupportBlock.key;
+        }
+
+        function renderPaletteRows() {
+            const paletteContainer = document.getElementById('paletteContainer');
+            ensureSelectedColorForMode();
+            paletteContainer.innerHTML = "";
+            paletteContainer.classList.toggle("carpet-mode", paletteMode === "carpet");
+            paletteContainer.classList.toggle("fullblock-mode", usesBlockPaletteMode());
+
+            paletteColorsForMode().forEach(color => {
+                const row = document.createElement('div');
+                row.className = `palette-row ${color.id === selectedColor.id ? 'active' : ''}`;
+                row.onclick = () => {
+                    selectedColor = color;
+                    renderPaletteRows();
+                    updateCursorPreview(lastMouseX, lastMouseZ);
+                };
+                
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color.hex;
+                row.appendChild(swatch);
+
+                if (paletteMode === "carpet") {
+                    const label = document.createElement('span');
+                    label.innerText = color.label;
+                    row.appendChild(label);
+                } else {
+                    const select = document.createElement('select');
+                    select.onclick = e => e.stopPropagation();
+                    color.blocks.forEach(block => {
+                        const option = document.createElement('option');
+                        option.value = block.key;
+                        option.textContent = block.displayName + (block.supportRequired ? " *" : "");
+                        select.appendChild(option);
+                    });
+                    select.value = selectedBlockForColor(color).key;
+                    select.onchange = () => {
+                        selectedBlockByColorId[color.id] = select.value;
+                        selectedColor = color;
+                        renderPaletteRows();
+                        updateCursorPreview(lastMouseX, lastMouseZ);
+                    };
+                    row.appendChild(select);
+                }
+
+                paletteContainer.appendChild(row);
+            });
+        }
+
+        function setPaletteMode(mode, message = "", refreshPreview = true) {
+            paletteMode = mode;
+            document.body.dataset.paletteMode = paletteMode;
+            renderPaletteRows();
+            if (refreshPreview) updateCursorPreview(lastMouseX, lastMouseZ);
+            if (message) setPaletteStatus(message);
+        }
+
+        function resetPaletteSelectionsToDefaults() {
+            for (const color of MAP_COLOR_DATABASE) {
+                selectedBlockByColorId[color.id] = color.blocks[0].key;
+            }
+            document.getElementById('paletteProfileInput').value = "";
+            setPaletteStatus("");
+        }
+
+        function applyImportedBlockSelections() {
+            const countsByColor = new Map();
+
+            for (const lf of loadedFiles) {
+                for (const visible of lf.visibleBlocks) {
+                    const info = visible.blockInfo;
+                    if (!info || !info.color || !info.block) continue;
+
+                    if (!countsByColor.has(info.color.id)) {
+                        countsByColor.set(info.color.id, new Map());
+                    }
+
+                    const blockCounts = countsByColor.get(info.color.id);
+                    blockCounts.set(info.block.key, (blockCounts.get(info.block.key) || 0) + 1);
+                }
+            }
+
+            let updated = 0;
+            countsByColor.forEach((blockCounts, colorId) => {
+                let bestKey = null;
+                let bestCount = 0;
+                blockCounts.forEach((count, key) => {
+                    if (count > bestCount) {
+                        bestKey = key;
+                        bestCount = count;
+                    }
+                });
+
+                const color = COLORS_BY_ID.get(colorId);
+                if (color && bestKey && color.blocks.some(block => block.key === bestKey)) {
+                    selectedBlockByColorId[colorId] = bestKey;
+                    updated++;
+                }
+            });
+
+            return updated;
+        }
+
+        supportBlockSelect.addEventListener('change', () => {
+            selectedSupportBlock = SUPPORT_BLOCK_OPTIONS.find(block => block.key === supportBlockSelect.value) || SUPPORT_BLOCK_OPTIONS[0];
+            if (usesBlockPaletteMode()) rebuildAllSupports();
+        });
+
+        renderSupportSelect();
+        renderPaletteRows();
+
+        function readFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function readTextFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        function nbtStringTag(name, value) {
+            return { type: 8, name, value };
+        }
+
+        function getPaletteEntryName(entry) {
+            return entry && entry.Name ? entry.Name.value : "";
+        }
+
+        function getPaletteEntryProperties(entry) {
+            const props = {};
+            if (entry && entry.Properties && entry.Properties.value) {
+                for (const key in entry.Properties.value) {
+                    props[key] = String(entry.Properties.value[key].value);
+                }
+            }
+            return props;
+        }
+
+        function paletteEntryKey(entry) {
+            return stateKey(getPaletteEntryName(entry), getPaletteEntryProperties(entry));
+        }
+
+        function createPaletteEntry(block) {
+            const entry = { Name: nbtStringTag("Name", block.name) };
+            const propKeys = Object.keys(block.properties || {});
+            if (propKeys.length > 0) {
+                const propValue = {};
+                propKeys.forEach(key => {
+                    propValue[key] = nbtStringTag(key, String(block.properties[key]));
+                });
+                entry.Properties = { type: 10, name: "Properties", value: propValue };
+            }
+            return entry;
+        }
+
+        function ensurePaletteState(lf, block) {
+            if (!lf.paletteKeyToIndex) lf.paletteKeyToIndex = new Map();
+            const existing = lf.paletteKeyToIndex.get(block.key);
+            if (existing !== undefined) return existing;
+
+            const idx = lf.structurePalette.findIndex(entry => paletteEntryKey(entry) === block.key);
+            if (idx !== -1) {
+                lf.paletteKeyToIndex.set(block.key, idx);
+                return idx;
+            }
+
+            lf.structurePalette.push(createPaletteEntry(block));
+            const newIndex = lf.structurePalette.length - 1;
+            lf.paletteKeyToIndex.set(block.key, newIndex);
+            return newIndex;
+        }
+
+        function coordKey(x, y, z) {
+            return `${x},${y},${z}`;
+        }
+
+        function rebuildBlockLookup(lf) {
+            lf.blockLookup = new Map();
+            for (const block of lf.blocksList) {
+                const pos = block.pos.value.list;
+                lf.blockLookup.set(coordKey(pos[0], pos[1], pos[2]), block);
+            }
+        }
+
+        function removeBlockFromFile(lf, block) {
+            const idx = lf.blocksList.indexOf(block);
+            if (idx !== -1) lf.blocksList.splice(idx, 1);
+            const pos = block.pos.value.list;
+            lf.blockLookup.delete(coordKey(pos[0], pos[1], pos[2]));
+        }
+
+        function blockAt(lf, x, y, z) {
+            return lf.blockLookup.get(coordKey(x, y, z));
+        }
+
+        function blockUsesOption(lf, block, option) {
+            if (!block) return false;
+            const paletteEntry = lf.structurePalette[block.state.value];
+            return paletteEntry && paletteEntryKey(paletteEntry) === option.key;
+        }
+
+        function isSupportMaterialBlock(lf, block) {
+            return blockUsesOption(lf, block, selectedSupportBlock);
+        }
+
+        function paletteInfoForState(lf, stateId) {
+            const entry = lf.structurePalette[stateId];
+            if (!entry) return null;
+            return BLOCK_BY_KEY.get(paletteEntryKey(entry)) || null;
+        }
+
+        function updateCellMetadata(cell) {
+            const info = paletteInfoForState(cell.file, cell.blockRef.state.value);
+            if (info) {
+                cell.colorId = info.color.id;
+                cell.blockKey = info.block.key;
+            }
+            return info;
+        }
+
+        function buildPaletteKeyMap(structurePalette) {
+            const map = new Map();
+            structurePalette.forEach((entry, idx) => {
+                map.set(paletteEntryKey(entry), idx);
+            });
+            return map;
+        }
+
+        function detectEditableLayer(structurePalette, blocksList) {
+            const counts = new Map();
+            for (const block of blocksList) {
+                const entry = structurePalette[block.state.value];
+                if (!entry || !BLOCK_BY_KEY.has(paletteEntryKey(entry))) continue;
+                const y = block.pos.value.list[1];
+                counts.set(y, (counts.get(y) || 0) + 1);
+            }
+
+            let bestY = -1;
+            let bestCount = 0;
+            counts.forEach((count, y) => {
+                if (count > bestCount || (count === bestCount && y > bestY)) {
+                    bestY = y;
+                    bestCount = count;
+                }
+            });
+            return bestY;
+        }
+
+        function getStructureSize(nbtRoot) {
+            return nbtRoot.value.size && nbtRoot.value.size.value ? nbtRoot.value.size.value.list : [];
+        }
+
+        function detectNooblineZ(nbtRoot, structurePalette, blocksList) {
+            const size = getStructureSize(nbtRoot);
+            const declaredZ = size[2] || 0;
+            const zCounts = new Map();
+            let minZ = Infinity;
+            let maxZ = -Infinity;
+
+            for (const block of blocksList) {
+                const entry = structurePalette[block.state.value];
+                if (!entry || !BLOCK_BY_KEY.has(paletteEntryKey(entry))) continue;
+                const z = block.pos.value.list[2];
+                zCounts.set(z, (zCounts.get(z) || 0) + 1);
+                if (z < minZ) minZ = z;
+                if (z > maxZ) maxZ = z;
+            }
+
+            if (!Number.isFinite(minZ)) return null;
+
+            // MapArtCraft schematic NBTs add a scaffold/noobline row before the 128 artwork rows.
+            // For a normal 1x1 map that makes the structure 128x129, with artwork at z=1..128.
+            const looksLikeMapartcraftDepth = declaredZ >= 129 || (maxZ - minZ + 1) > 128;
+            return looksLikeMapartcraftDepth && zCounts.has(minZ) ? minZ : null;
+        }
+
+        function isNooblineBlock(lf, block) {
+            return lf.nooblineZ !== null &&
+                block.pos.value.list[2] === lf.nooblineZ;
+        }
+
+        function collectVisibleArtworkBlocks(structurePalette, blocksList, nooblineZ) {
+            const visible = new Map();
+            for (const block of blocksList) {
+                const pos = block.pos.value.list;
+                if (nooblineZ !== null && pos[2] === nooblineZ) continue;
+
+                const entry = structurePalette[block.state.value];
+                if (!entry) continue;
+
+                const key = `${pos[0]},${pos[2]}`;
+                const existing = visible.get(key);
+                if (!existing || pos[1] > existing.block.pos.value.list[1]) {
+                    visible.set(key, {
+                        block,
+                        blockInfo: BLOCK_BY_KEY.get(paletteEntryKey(entry)) || null
+                    });
+                }
+            }
+            return Array.from(visible.values()).filter(item => item.blockInfo);
+        }
+
+        function buildTopMapBlockByRawXZ(structurePalette, blocksList) {
+            const columns = new Map();
+            for (const block of blocksList) {
+                const pos = block.pos.value.list;
+                const entry = structurePalette[block.state.value];
+                if (!entry || !BLOCK_BY_KEY.has(paletteEntryKey(entry))) continue;
+
+                const key = `${pos[0]},${pos[2]}`;
+                const existing = columns.get(key);
+                if (!existing || pos[1] > existing.y) {
+                    columns.set(key, { y: pos[1], block });
+                }
+            }
+            return columns;
+        }
+
+        function visibleBlocksAreStaircased(visibleBlocks) {
+            if (visibleBlocks.length === 0) return false;
+            const firstY = visibleBlocks[0].block.pos.value.list[1];
+            return visibleBlocks.some(visible => visible.block.pos.value.list[1] !== firstY);
+        }
+
+        function inferSupportBlockFromLoadedFiles() {
+            const counts = new Map();
+            for (const lf of loadedFiles) {
+                for (const cell of lf.editableCellsByLocal.values()) {
+                    const support = blockAt(lf, cell.rawX, cell.rawY - 1, cell.rawZ);
+                    if (!support) continue;
+                    const entry = lf.structurePalette[support.state.value];
+                    if (!entry) continue;
+                    const key = paletteEntryKey(entry);
+                    if (SUPPORT_BLOCK_OPTIONS.some(option => option.key === key)) {
+                        counts.set(key, (counts.get(key) || 0) + 1);
+                    }
+                }
+            }
+
+            let bestKey = null;
+            let bestCount = 0;
+            counts.forEach((count, key) => {
+                if (count > bestCount) {
+                    bestKey = key;
+                    bestCount = count;
+                }
+            });
+
+            selectedSupportBlock = SUPPORT_BLOCK_OPTIONS.find(option => option.key === bestKey) || SUPPORT_BLOCK_OPTIONS[0];
+            renderSupportSelect();
+        }
+
+        function decodeMapartPreset(encodedPreset) {
+            if (!encodedPreset || !/^[0-9a-zQ-ZA-P]+$/.test(encodedPreset)) return null;
+            const selections = [];
+            const presetRegex = /([0-9a-z]+)(?=([Q-ZA-P]+))/g;
+            let match;
+            const digitMap = { Q: "0", R: "1", S: "2", T: "3", U: "4", V: "5", W: "6", X: "7", Y: "8", Z: "9" };
+
+            while ((match = presetRegex.exec(encodedPreset)) !== null) {
+                const colorId = parseInt(match[1], 36);
+                const encodedBlock = match[2]
+                    .replace(/[Q-Z]/g, char => digitMap[char])
+                    .toLowerCase();
+                const presetIndex = parseInt(encodedBlock, 26);
+                if (Number.isFinite(colorId) && Number.isFinite(presetIndex)) {
+                    selections.push({ mapartId: colorId, presetIndex });
+                }
+            }
+            return selections;
+        }
+
+        function encodeMapartPresetIndex(presetIndex) {
+            const digitMap = ["Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
+            return Math.max(0, Number(presetIndex) || 0)
+                .toString(26)
+                .replace(/[0-9]/g, digit => digitMap[Number(digit)])
+                .replace(/[a-p]/g, char => char.toUpperCase());
+        }
+
+        function encodeCurrentMapartPreset() {
+            return MAP_COLOR_DATABASE
+                .map(color => {
+                    const block = selectedBlockForColor(color);
+                    const presetIndex = block && block.mapartPresetIndex !== null ? block.mapartPresetIndex : 0;
+                    return color.mapartId.toString(36) + encodeMapartPresetIndex(presetIndex);
+                })
+                .join("");
+        }
+
+        function currentPaletteProfileText() {
+            const preset = encodeCurrentMapartPreset();
+            const staircasingEnabled = paletteMode === "staircased";
+            const lines = [
+                "; paint.net Palette File",
+                "; Generated by NBT Mapart Editor",
+                `; Link to preset: https://mike2b2t.github.io/mapartcraft/?preset=${preset}`,
+                `; staircasing: ${staircasingEnabled ? "enabled" : "disabled"}`,
+                "; unobtainable colours: disabled",
+                `; palette mode: ${paletteMode}`,
+                ""
+            ];
+
+            for (const color of MAP_COLOR_DATABASE) {
+                const block = selectedBlockForColor(color);
+                lines.push(`; ${color.mapartId} ${color.label}: ${block ? block.displayName : "Default"}`);
+            }
+
+            lines.push("");
+            if (staircasingEnabled) {
+                for (const color of MAP_COLOR_DATABASE) {
+                    lines.push(rgbToPaletteHex(rgbForMapTone(color, "dark")));
+                    lines.push(rgbToPaletteHex(rgbForMapTone(color, "normal")));
+                    lines.push(rgbToPaletteHex(rgbForMapTone(color, "light")));
+                }
+                lines.push("FF-64-64-64");
+                lines.push("FF-64-64-64");
+                lines.push("FF-64-64-64");
+            } else {
+                for (const color of MAP_COLOR_DATABASE) {
+                    lines.push(rgbToPaletteHex(rgbForMapTone(color, "normal")));
+                }
+            }
+
+            return lines.join("\n") + "\n";
+        }
+
+        function profileModeFromText(text) {
+            const modeMatch = text.match(/;\s*palette mode:\s*(carpet|fullblock|staircased)/i);
+            if (modeMatch) return modeMatch[1].toLowerCase();
+            if (/;\s*staircasing:\s*enabled/i.test(text)) return "staircased";
+            if (/;\s*staircasing:\s*disabled/i.test(text)) return "fullblock";
+            return null;
+        }
+
+        function shouldApplyProfileMode(profileMode) {
+            if (!profileMode || profileMode === paletteMode) return false;
+            if (loadedFiles.length === 0) return true;
+            if (profileMode === "staircased" && usesBlockPaletteMode()) return true;
+            return profileMode === "carpet" && paletteMode === "carpet";
+        }
+
+        function importPaletteProfileText(text) {
+            const presetMatch = text.match(/[?&]preset=([0-9a-zQ-ZA-P]+)/) || text.match(/preset\s*[:=]\s*([0-9a-zQ-ZA-P]+)/i);
+            if (!presetMatch) {
+                setPaletteStatus("No MapArtCraft preset link found in palette file.");
+                return;
+            }
+
+            const selections = decodeMapartPreset(presetMatch[1]);
+            if (!selections) {
+                setPaletteStatus("Could not decode the MapArtCraft preset.");
+                return;
+            }
+
+            let applied = 0;
+            let fallback = 0;
+            let skipped = 0;
+            selections.forEach(selection => {
+                const color = COLOR_BY_MAPART_ID.get(selection.mapartId);
+                if (!color) {
+                    skipped++;
+                    return;
+                }
+
+                const block = MAPART_BLOCK_BY_COLOR_AND_PRESET.get(`${selection.mapartId}:${selection.presetIndex}`);
+                if (block) {
+                    selectedBlockByColorId[color.id] = block.key;
+                    applied++;
+                } else {
+                    selectedBlockByColorId[color.id] = color.blocks[0].key;
+                    fallback++;
+                }
+            });
+
+            const profileMode = profileModeFromText(text);
+            if (shouldApplyProfileMode(profileMode)) {
+                setPaletteMode(profileMode, "", false);
+            } else {
+                renderPaletteRows();
+            }
+            updateCursorPreview(lastMouseX, lastMouseZ);
+            const modeNote = profileMode ? ` Mode: ${profileMode}.` : "";
+            setPaletteStatus(`Imported profile: ${applied} matched, ${fallback} fallback, ${skipped} skipped.${modeNote}`);
+        }
+
+        document.getElementById('paletteProfileInput').addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            try {
+                importPaletteProfileText(await readTextFileAsync(file));
+            } catch (error) {
+                setPaletteStatus("Failed to import palette profile.");
+                console.error(error);
+            }
+        });
+
+        // --- 3. MULTI-FILE PARSER AND STITCHER ---
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            originalFileName = files[0].name.replace('.nbt', '').replace(/_[0-9\-]+_[0-9\-]+$/, '');
+            document.getElementById('saveZipBtn').innerText = "Processing...";
+            resetPaletteSelectionsToDefaults();
+            loadedFiles = [];
+            mapWidth = 0;
+            mapHeight = 0;
+            gridMap = [];
+            
+            let minGridX = Infinity, maxGridX = -Infinity;
+            let minGridZ = Infinity, maxGridZ = -Infinity;
+
+            for (const file of files) {
+                try {
+                    const dataBuffer = await readFileAsync(file);
+                    let data = new Uint8Array(dataBuffer);
+                    try { data = pako.ungzip(data); } catch (err) {}
+                    
+                    const parser = new NBTParser(data);
+                    const nbtRoot = parser.readTag();
+
+                    if (!nbtRoot || !nbtRoot.value.size || !nbtRoot.value.blocks) {
+                        console.warn(`Skipping ${file.name}: Not a valid structure.`);
+                        continue;
+                    }
+
+                    let structurePalette;
+                    if (nbtRoot.value.palette) {
+                        structurePalette = nbtRoot.value.palette.value.list;
+                    } else if (nbtRoot.value.palettes) {
+                        structurePalette = nbtRoot.value.palettes.value.list[0].list; 
+                    } else {
+                        console.warn(`Skipping ${file.name}: No palette found.`);
+                        continue;
+                    }
+
+                    const blocksList = nbtRoot.value.blocks.value.list;
+                    const editableLayerY = detectEditableLayer(structurePalette, blocksList);
+                    if (editableLayerY === -1) {
+                        console.warn(`Skipping ${file.name}: No known map-color blocks found.`);
+                        continue;
+                    }
+                    const nooblineZ = detectNooblineZ(nbtRoot, structurePalette, blocksList);
+                    const visibleBlocks = collectVisibleArtworkBlocks(structurePalette, blocksList, nooblineZ);
+                    const topMapBlockByRawXZ = buildTopMapBlockByRawXZ(structurePalette, blocksList);
+
+                    let fMinX = Infinity, fMinZ = Infinity;
+                    
+                    for (const visible of visibleBlocks) {
+                        const px = visible.block.pos.value.list[0];
+                        const pz = visible.block.pos.value.list[2];
+                        if (px < fMinX) fMinX = px;
+                        if (pz < fMinZ) fMinZ = pz;
+                    }
+
+                    if (!Number.isFinite(fMinX) || !Number.isFinite(fMinZ)) {
+                        console.warn(`Skipping ${file.name}: No editable blocks found on detected layer.`);
+                        continue;
+                    }
+
+                    let gX = 0, gZ = 0;
+                    const match = file.name.match(/_([0-9\-]+)_([0-9\-]+)\.nbt$/);
+                    if (match) {
+                        gX = parseInt(match[1]);
+                        gZ = parseInt(match[2]);
+                    }
+
+                    if (gX < minGridX) minGridX = gX;
+                    if (gX > maxGridX) maxGridX = gX;
+                    if (gZ < minGridZ) minGridZ = gZ;
+                    if (gZ > maxGridZ) maxGridZ = gZ;
+
+                    const loadedFile = {
+                        name: file.name,
+                        nbtRoot: nbtRoot,
+                        blocksList: blocksList,
+                        structurePalette: structurePalette,
+                        paletteKeyToIndex: buildPaletteKeyMap(structurePalette),
+                        layerY: editableLayerY,
+                        nooblineZ: nooblineZ,
+                        minX: fMinX,
+                        minZ: fMinZ,
+                        gridX: gX,
+                        gridZ: gZ,
+                        visibleBlocks: visibleBlocks,
+                        topMapBlockByRawXZ: topMapBlockByRawXZ,
+                        staircased: visibleBlocksAreStaircased(visibleBlocks),
+                        editableCellsByLocal: new Map(),
+                        supportCreatedKeys: new Set()
+                    };
+                    rebuildBlockLookup(loadedFile);
+                    loadedFiles.push(loadedFile);
+
+                } catch (error) {
+                    console.error(`Error loading ${file.name}:`, error);
+                }
+            }
+
+            if (loadedFiles.length === 0) {
+                alert("No valid map files could be loaded.");
+                document.getElementById('saveZipBtn').innerText = "Download as ZIP Folder";
+                return;
+            }
+
+            const carpetOnlyImport = loadedFiles.every(lf =>
+                lf.visibleBlocks.length > 0 &&
+                lf.visibleBlocks.every(visible => isCarpetBlockOption(visible.blockInfo.block))
+            );
+            const staircasedImport = !carpetOnlyImport && loadedFiles.some(lf => lf.staircased);
+            const importedMode = carpetOnlyImport ? "carpet" : (staircasedImport ? "staircased" : "fullblock");
+            const importedSelections = carpetOnlyImport ? 0 : applyImportedBlockSelections();
+            setPaletteMode(
+                importedMode,
+                carpetOnlyImport
+                    ? "Carpet-only NBT detected. Switched to the carpet palette."
+                    : staircasedImport
+                        ? `Staircased full-block NBT detected. Preserving block heights and matched ${importedSelections} dropdowns from imported blocks.`
+                        : `Flat full-block or mixed NBT detected. Matched ${importedSelections} dropdowns from imported blocks.`,
+                false
+            );
+
+            // Calculate exact total size based on the furthest global block mapped
+            let maxGlobalXNeeded = 0;
+            let maxGlobalZNeeded = 0;
+            for (const lf of loadedFiles) {
+                const offsetX = (lf.gridX - minGridX) * 128;
+                const offsetZ = (lf.gridZ - minGridZ) * 128;
+                for (const visible of lf.visibleBlocks) {
+                    const b = visible.block;
+                    const localX = b.pos.value.list[0] - lf.minX;
+                    const localZ = b.pos.value.list[2] - lf.minZ;
+                    const globalX = offsetX + localX;
+                    const globalZ = offsetZ + localZ;
+                    if (globalX > maxGlobalXNeeded) maxGlobalXNeeded = globalX;
+                    if (globalZ > maxGlobalZNeeded) maxGlobalZNeeded = globalZ;
+                }
+            }
+
+            mapWidth = maxGlobalXNeeded + 1;
+            mapHeight = maxGlobalZNeeded + 1;
+            gridMap = new Array(mapWidth * mapHeight).fill(null);
+
+            for (const lf of loadedFiles) {
+                const offsetX = (lf.gridX - minGridX) * 128;
+                const offsetZ = (lf.gridZ - minGridZ) * 128;
+
+                for (const visible of lf.visibleBlocks) {
+                    const b = visible.block;
+                    const blockInfo = visible.blockInfo;
+                    const localX = b.pos.value.list[0] - lf.minX;
+                    const localZ = b.pos.value.list[2] - lf.minZ;
+                    const globalX = offsetX + localX;
+                    const globalZ = offsetZ + localZ;
+                    
+                    if (globalX >= 0 && globalX < mapWidth && globalZ >= 0 && globalZ < mapHeight) {
+                        const cell = {
+                            blockRef: b,
+                            file: lf,
+                            rawX: b.pos.value.list[0],
+                            rawY: b.pos.value.list[1],
+                            rawZ: b.pos.value.list[2],
+                            localX,
+                            localZ,
+                            globalX,
+                            globalZ,
+                            colorId: blockInfo.color.id,
+                            blockKey: blockInfo.block.key
+                        };
+                        gridMap[globalZ * mapWidth + globalX] = cell;
+                        lf.editableCellsByLocal.set(`${localX},${localZ}`, cell);
+                    }
+                }
+            }
+
+            if (usesBlockPaletteMode()) {
+                inferSupportBlockFromLoadedFiles();
+            } else {
+                renderSupportSelect();
+            }
+
+            canvas.width = mapWidth;
+            canvas.height = mapHeight;
+            previewCanvas.width = mapWidth;
+            previewCanvas.height = mapHeight;
+
+            currentScale = Math.min(4, 512 / Math.max(mapWidth, mapHeight));
+            applyZoom();
+
+            canvasContainer.scrollLeft = (canvas.offsetWidth - canvasContainer.offsetWidth) / 2;
+            canvasContainer.scrollTop = (canvas.offsetHeight - canvasContainer.offsetHeight) / 2;
+            
+            undoStack = [];
+            redoStack = [];
+            updateButtons();
+            renderFullCanvas();
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+
+            document.getElementById('saveZipBtn').innerText = "Download as ZIP Folder";
+        });
+
+        // --- SUPPORT BLOCKS ---
+        function cellByLocal(lf, localX, localZ) {
+            return lf.editableCellsByLocal.get(`${localX},${localZ}`);
+        }
+
+        function isEditableArtworkBlock(lf, block) {
+            if (!block) return false;
+            const pos = block.pos.value.list;
+            const cell = cellByLocal(lf, pos[0] - lf.minX, pos[2] - lf.minZ);
+            return !!(cell && cell.blockRef === block);
+        }
+
+        function cellNeedsSupport(cell) {
+            if (!usesBlockPaletteMode()) return false;
+            const info = updateCellMetadata(cell);
+            return !!(info && info.block.supportRequired);
+        }
+
+        function directSupportPositionsForCell(cell) {
+            const y = cell.rawY - 1;
+            if (y < 0) return [];
+
+            const pos = { x: cell.rawX, y, z: cell.rawZ };
+            return pos.z === cell.file.nooblineZ ? [] : [pos];
+        }
+
+        function optimizedSupportPositionsForCell(cell) {
+            const y = cell.rawY - 1;
+            if (y < 0) return [];
+
+            return [
+                { x: cell.rawX, y, z: cell.rawZ },
+                { x: cell.rawX, y, z: cell.rawZ + 1 }
+            ].concat(cell.rawZ > 0 ? [{ x: cell.rawX, y, z: cell.rawZ - 1 }] : [])
+             .filter(pos => pos.z !== cell.file.nooblineZ);
+        }
+
+        function supportPositionsForCell(cell) {
+            return paletteMode === "staircased"
+                ? directSupportPositionsForCell(cell)
+                : optimizedSupportPositionsForCell(cell);
+        }
+
+        function supportChangeRecordForCell(cell) {
+            return {
+                cell,
+                previousSupportPositions: cellNeedsSupport(cell) ? supportPositionsForCell(cell) : []
+            };
+        }
+
+        function normalizeSupportChangeRecords(changedItems) {
+            return changedItems
+                .map(item => item && item.cell ? item : { cell: item, previousSupportPositions: [] })
+                .filter(record => record.cell);
+        }
+
+        function createSupportBlockAt(lf, pos) {
+            if (pos.y < 0 || blockAt(lf, pos.x, pos.y, pos.z)) return;
+            const state = ensurePaletteState(lf, selectedSupportBlock);
+            const supportBlock = {
+                pos: { type: 9, name: "pos", value: { type: 3, list: [pos.x, pos.y, pos.z] } },
+                state: { type: 3, name: "state", value: state }
+            };
+            lf.blocksList.push(supportBlock);
+            const key = coordKey(pos.x, pos.y, pos.z);
+            lf.blockLookup.set(key, supportBlock);
+            lf.supportCreatedKeys.add(key);
+        }
+
+        function syncSupportsForCells(changedCells) {
+            if (!usesBlockPaletteMode()) return;
+
+            const byFile = new Map();
+            for (const record of normalizeSupportChangeRecords(changedCells)) {
+                const cell = record.cell;
+                if (!byFile.has(cell.file)) byFile.set(cell.file, []);
+                byFile.get(cell.file).push(record);
+            }
+
+            byFile.forEach((records, lf) => {
+                const affectedCells = new Map();
+                const expired = new Map();
+
+                for (const record of records) {
+                    const cell = record.cell;
+                    for (const pos of record.previousSupportPositions || []) {
+                        expired.set(coordKey(pos.x, pos.y, pos.z), pos);
+                    }
+
+                    for (let dz = -2; dz <= 2; dz++) {
+                        const neighbor = cellByLocal(lf, cell.localX, cell.localZ + dz);
+                        if (neighbor) affectedCells.set(`${neighbor.localX},${neighbor.localZ}`, neighbor);
+                    }
+                }
+
+                const desired = new Map();
+                affectedCells.forEach(cell => {
+                    const positions = supportPositionsForCell(cell);
+                    if (cellNeedsSupport(cell)) {
+                        positions.forEach(pos => desired.set(coordKey(pos.x, pos.y, pos.z), pos));
+                    }
+                });
+
+                expired.forEach((pos, key) => {
+                    if (desired.has(key)) return;
+                    const existing = blockAt(lf, pos.x, pos.y, pos.z);
+                    if (existing && !isEditableArtworkBlock(lf, existing) && (lf.supportCreatedKeys.has(key) || isSupportMaterialBlock(lf, existing))) {
+                        removeBlockFromFile(lf, existing);
+                        lf.supportCreatedKeys.delete(key);
+                    }
+                });
+
+                desired.forEach(pos => {
+                    const existing = blockAt(lf, pos.x, pos.y, pos.z);
+                    if (!existing) {
+                        createSupportBlockAt(lf, pos);
+                    }
+                });
+            });
+        }
+
+        function rebuildAllSupports() {
+            if (loadedFiles.length === 0 || !usesBlockPaletteMode()) return;
+            for (const lf of loadedFiles) {
+                for (const key of Array.from(lf.supportCreatedKeys)) {
+                    const existing = lf.blockLookup.get(key);
+                    if (existing) removeBlockFromFile(lf, existing);
+                    lf.supportCreatedKeys.delete(key);
+                }
+            }
+            syncSupportsForCells(gridMap.filter(Boolean));
+        }
+
+        function updateStructureSize(lf) {
+            if (!lf.nbtRoot.value.size || !lf.nbtRoot.value.size.value || !lf.nbtRoot.value.size.value.list) return;
+            let maxX = 0, maxY = 0, maxZ = 0;
+            for (const block of lf.blocksList) {
+                const pos = block.pos.value.list;
+                if (pos[0] > maxX) maxX = pos[0];
+                if (pos[1] > maxY) maxY = pos[1];
+                if (pos[2] > maxZ) maxZ = pos[2];
+            }
+            lf.nbtRoot.value.size.value.list = [maxX + 1, maxY + 1, maxZ + 1];
+        }
+
+        // --- DRAWING AND RENDERING ---
+        function previousStaircaseY(cell) {
+            const previousGlobalZ = cell.globalZ - 1;
+            if (previousGlobalZ >= 0) {
+                const previousCell = gridMap[previousGlobalZ * mapWidth + cell.globalX];
+                if (previousCell) return previousCell.rawY;
+            }
+
+            const previousColumn = cell.file.topMapBlockByRawXZ
+                ? cell.file.topMapBlockByRawXZ.get(`${cell.rawX},${cell.rawZ - 1}`)
+                : null;
+            return previousColumn ? previousColumn.y : null;
+        }
+
+        function staircasedToneForCell(cell) {
+            if (paletteMode !== "staircased") return "normal";
+
+            const previousY = previousStaircaseY(cell);
+            if (previousY === null) return "normal";
+            if (cell.rawY > previousY) return "light";
+            if (cell.rawY < previousY) return "dark";
+            return "normal";
+        }
+
+        function rgbForCellColor(cell, color) {
+            return rgbForMapTone(color, staircasedToneForCell(cell));
+        }
+
+        function rgbToCss(rgb) {
+            return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        }
+
+        function renderFullCanvas() {
+            if (mapWidth === 0 || mapHeight === 0) return;
+            const imageData = ctx.createImageData(mapWidth, mapHeight);
+            
+            for(let i=0; i<imageData.data.length; i++) imageData.data[i] = 0; 
+
+            for(let i = 0; i < gridMap.length; i++) {
+                const cell = gridMap[i];
+                if (cell) {
+                    const blockInfo = updateCellMetadata(cell);
+                    
+                    if (blockInfo) {
+                        const [r, g, b] = rgbForCellColor(cell, blockInfo.color);
+                        
+                        const pxIdx = i * 4;
+                        imageData.data[pxIdx] = r;
+                        imageData.data[pxIdx+1] = g;
+                        imageData.data[pxIdx+2] = b;
+                        imageData.data[pxIdx+3] = 255;
+                    }
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function applyBrush(cx, cz, updateCanvasDirectly) {
+            const size = parseInt(document.getElementById('brushSize').value) || 1;
+            const offsetStart = Math.floor(size / 2);
+            const offsetEnd = size - offsetStart - 1; 
+            
+            let changed = false;
+            const changedCells = [];
+            const targetBlock = selectedBlockForColor(selectedColor);
+            for(let bx = cx - offsetStart; bx <= cx + offsetEnd; bx++) {
+                for(let bz = cz - offsetStart; bz <= cz + offsetEnd; bz++) {
+                    if (bx >= 0 && bx < mapWidth && bz >= 0 && bz < mapHeight) {
+                        const cell = gridMap[bz * mapWidth + bx];
+                        
+                        if (cell) {
+                            const targetPaletteIndex = ensurePaletteState(cell.file, targetBlock);
+                            
+                            if (cell.blockRef.state.value !== targetPaletteIndex) {
+                                const supportChange = supportChangeRecordForCell(cell);
+                                cell.blockRef.state.value = targetPaletteIndex;
+                                cell.colorId = selectedColor.id;
+                                cell.blockKey = targetBlock.key;
+                                changedCells.push(supportChange);
+                                changed = true;
+                                if (updateCanvasDirectly) {
+                                    ctx.fillStyle = rgbToCss(rgbForCellColor(cell, selectedColor));
+                                    ctx.fillRect(bx, bz, 1, 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (changedCells.length > 0) syncSupportsForCells(changedCells);
+            return changed;
+        }
+
+        function drawLine(x0, y0, x1, y1, updateCanvasDirectly) {
+            let dx = Math.abs(x1 - x0);
+            let dy = Math.abs(y1 - y0);
+            let sx = (x0 < x1) ? 1 : -1;
+            let sy = (y0 < y1) ? 1 : -1;
+            let err = dx - dy;
+            let changed = false;
+
+            while(true) {
+                if (applyBrush(x0, y0, updateCanvasDirectly)) changed = true;
+                if (x0 === x1 && y0 === y1) break;
+                let e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+            return changed;
+        }
+
+        // --- PREVIEW CURSOR LAYER (Optimized to prevent lag) ---
+        function previewBrush(cx, cz, fillStyle, size, offsetStart) {
+            previewCtx.fillStyle = fillStyle;
+            previewCtx.fillRect(cx - offsetStart, cz - offsetStart, size, size);
+        }
+
+        function previewLine(x0, y0, x1, y1, fillStyle, size, offsetStart) {
+            let dx = Math.abs(x1 - x0);
+            let dy = Math.abs(y1 - y0);
+            let sx = (x0 < x1) ? 1 : -1;
+            let sy = (y0 < y1) ? 1 : -1;
+            let err = dx - dy;
+
+            while(true) {
+                previewBrush(x0, y0, fillStyle, size, offsetStart);
+                if (x0 === x1 && y0 === y1) break;
+                let e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        function updateCursorPreview(x, z) {
+            if (mapWidth === 0 || loadedFiles.length === 0) return;
+            
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+            
+            if (isPanning) return;
+
+            const size = parseInt(document.getElementById('brushSize').value) || 1;
+            const offsetStart = Math.floor(size / 2);
+            
+            const r = parseInt(selectedColor.hex.slice(1, 3), 16);
+            const g = parseInt(selectedColor.hex.slice(3, 5), 16);
+            const b = parseInt(selectedColor.hex.slice(5, 7), 16);
+            const fillStyle = `rgba(${r}, ${g}, ${b}, 0.65)`;
+
+            if (isDrawing && activeTool === 'line') {
+                previewLine(lineStartX, lineStartZ, x, z, fillStyle, size, offsetStart);
+                return; 
+            }
+
+            if (x < 0 || x >= mapWidth || z < 0 || z >= mapHeight) return;
+            
+            previewCtx.fillStyle = fillStyle;
+            previewCtx.fillRect(x - offsetStart, z - offsetStart, size, size);
+        }
+
+        // --- HISTORY (UNDO/REDO) ---
+        function saveCurrentStateToUndo() {
+            const snapshot = new Int32Array(gridMap.length);
+            for(let i=0; i<gridMap.length; i++) {
+                snapshot[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
+            }
+            undoStack.push(snapshot);
+            redoStack = []; 
+            updateButtons();
+        }
+
+        function applySnapshot(snapshot) {
+            const changedCells = [];
+            for(let i=0; i<gridMap.length; i++) {
+                const cell = gridMap[i];
+                if (cell && snapshot[i] !== -1 && cell.blockRef.state.value !== snapshot[i]) {
+                    const supportChange = supportChangeRecordForCell(cell);
+                    cell.blockRef.state.value = snapshot[i];
+                    updateCellMetadata(cell);
+                    changedCells.push(supportChange);
+                }
+            }
+            if (changedCells.length > 0) syncSupportsForCells(changedCells);
+            renderFullCanvas();
+        }
+
+        document.getElementById('undoBtn').addEventListener('click', () => {
+            if (undoStack.length === 0) return;
+            const currentState = new Int32Array(gridMap.length);
+            for(let i=0; i<gridMap.length; i++) currentState[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
+            redoStack.push(currentState);
+            
+            const previousState = undoStack.pop();
+            applySnapshot(previousState);
+            updateButtons();
+        });
+
+        document.getElementById('redoBtn').addEventListener('click', () => {
+            if (redoStack.length === 0) return;
+            const currentState = new Int32Array(gridMap.length);
+            for(let i=0; i<gridMap.length; i++) currentState[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
+            undoStack.push(currentState);
+            
+            const nextState = redoStack.pop();
+            applySnapshot(nextState);
+            updateButtons();
+        });
+
+        function updateButtons() {
+            document.getElementById('undoBtn').disabled = undoStack.length === 0;
+            document.getElementById('redoBtn').disabled = redoStack.length === 0;
+        }
+
+        function getMouseCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = mapWidth / rect.width;
+            const scaleY = mapHeight / rect.height;
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const z = Math.floor((e.clientY - rect.top) * scaleY);
+            return {x, z};
+        }
+
+        // --- MOUSE EVENTS ---
+        canvasContainer.addEventListener('contextmenu', e => e.preventDefault());
+
+        canvasContainer.addEventListener('mouseleave', () => {
+            if (previewCtx && mapWidth > 0) previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+        });
+
+        canvasContainer.addEventListener('mousedown', (e) => { 
+            if (loadedFiles.length === 0) return;
+            
+            if (e.button === 0) { 
+                saveCurrentStateToUndo(); 
+                isDrawing = true; 
+                hasDrawnInCurrentStroke = false;
+                
+                const {x, z} = getMouseCoords(e);
+                
+                if (activeTool === 'line') {
+                    lineStartX = x;
+                    lineStartZ = z;
+                } else {
+                    if (applyBrush(x, z, true)) {
+                        hasDrawnInCurrentStroke = true;
+                    }
+                }
+                lastMouseX = x;
+                lastMouseZ = z;
+                updateCursorPreview(x, z);
+            } 
+            else if (e.button === 2) { 
+                isPanning = true;
+                startPanX = e.clientX;
+                startPanY = e.clientY;
+                startScrollLeft = canvasContainer.scrollLeft;
+                startScrollTop = canvasContainer.scrollTop;
+                document.body.style.cursor = 'grab';
+                updateCursorPreview(-1, -1); 
+            }
+        });
+        
+        window.addEventListener('mousemove', (e) => {
+            const {x, z} = getMouseCoords(e);
+
+            if (isDrawing) {
+                if (activeTool === 'line') {
+                    // Line preview layer handles visuals
+                } else {
+                    if (x !== lastMouseX || z !== lastMouseZ) {
+                        if (drawLine(lastMouseX, lastMouseZ, x, z, true)) {
+                            hasDrawnInCurrentStroke = true;
+                        }
+                    }
+                }
+            } else if (isPanning) {
+                const dx = e.clientX - startPanX;
+                const dy = e.clientY - startPanY;
+                canvasContainer.scrollLeft = startScrollLeft - dx;
+                canvasContainer.scrollTop = startScrollTop - dy;
+            }
+            
+            lastMouseX = x;
+            lastMouseZ = z;
+            if (!isPanning) updateCursorPreview(x, z);
+        });
+        
+        window.addEventListener('mouseup', (e) => { 
+            if (isDrawing) {
+                if (activeTool === 'line') {
+                    const {x, z} = getMouseCoords(e);
+                    if (drawLine(lineStartX, lineStartZ, x, z, true)) {
+                        hasDrawnInCurrentStroke = true;
+                    }
+                }
+
+                if (!hasDrawnInCurrentStroke) {
+                    undoStack.pop();
+                    updateButtons();
+                }
+            }
+
+            isDrawing = false; 
+            isPanning = false;
+            document.body.style.cursor = 'default';
+            
+            const {x, z} = getMouseCoords(e);
+            updateCursorPreview(x, z);
+        });
+
+        function applyZoom() {
+            const w = Math.floor(mapWidth * currentScale) + 'px';
+            const h = Math.floor(mapHeight * currentScale) + 'px';
+            canvas.style.width = w; canvas.style.height = h;
+            previewCanvas.style.width = w; previewCanvas.style.height = h;
+        }
+
+        canvasContainer.addEventListener('wheel', function(e) {
+            if (loadedFiles.length === 0) return;
+            e.preventDefault(); 
+            
+            const rectBefore = canvas.getBoundingClientRect();
+            const containerRectBefore = canvasContainer.getBoundingClientRect();
+            const mouseContentX = e.clientX - containerRectBefore.left - canvasContainer.clientLeft;
+            const mouseContentY = e.clientY - containerRectBefore.top - canvasContainer.clientTop;
+            const renderedScaleX = rectBefore.width / mapWidth;
+            const renderedScaleY = rectBefore.height / mapHeight;
+            const mapXUnderMouse = (e.clientX - rectBefore.left) / renderedScaleX;
+            const mapZUnderMouse = (e.clientY - rectBefore.top) / renderedScaleY;
+
+            const zoomSpeed = 0.15;
+            let direction = e.deltaY > 0 ? -1 : 1;
+            
+            currentScale += direction * zoomSpeed * currentScale; 
+            if (currentScale < 0.5) currentScale = 0.5;
+            if (currentScale > 30) currentScale = 30;
+            
+            applyZoom();
+
+            const rectAfter = canvas.getBoundingClientRect();
+            const containerRectAfter = canvasContainer.getBoundingClientRect();
+            const canvasContentLeft = rectAfter.left - containerRectAfter.left - canvasContainer.clientLeft + canvasContainer.scrollLeft;
+            const canvasContentTop = rectAfter.top - containerRectAfter.top - canvasContainer.clientTop + canvasContainer.scrollTop;
+            const newRenderedScaleX = rectAfter.width / mapWidth;
+            const newRenderedScaleY = rectAfter.height / mapHeight;
+            const maxScrollLeft = Math.max(0, canvasContainer.scrollWidth - canvasContainer.clientWidth);
+            const maxScrollTop = Math.max(0, canvasContainer.scrollHeight - canvasContainer.clientHeight);
+            canvasContainer.scrollLeft = Math.max(0, Math.min(maxScrollLeft, canvasContentLeft + mapXUnderMouse * newRenderedScaleX - mouseContentX));
+            canvasContainer.scrollTop = Math.max(0, Math.min(maxScrollTop, canvasContentTop + mapZUnderMouse * newRenderedScaleY - mouseContentY));
+            
+            const {x, z} = getMouseCoords(e);
+            updateCursorPreview(x, z);
+            
+        }, { passive: false });
+
+        // --- AUTO-DETECT EXPORT LOGIC ---
+        function downloadBlob(dataArray, fileName) {
+            const blob = new Blob([dataArray], { type: "application/octet-stream" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link); 
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        }
+
+        function downloadText(text, fileName) {
+            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        }
+
+        function saveCurrentProfile() {
+            downloadText(currentPaletteProfileText(), `${originalFileName || "nbt_mapart"}_profile.txt`);
+            setPaletteStatus("Saved palette profile from current dropdown selections.");
+        }
+
+        function paletteEntryOrAir(lf, state) {
+            return lf.structurePalette[state] || { Name: nbtStringTag("Name", "minecraft:air") };
+        }
+
+        function nooblineBlocksForFile(lf) {
+            if (!lf || lf.nooblineZ === null) return [];
+            return lf.blocksList.filter(block => isNooblineBlock(lf, block));
+        }
+
+        function nooblineFallbackForFile(lf) {
+            if (!lf || lf.nooblineZ === null) return null;
+
+            const nooblineBlock = nooblineBlocksForFile(lf)[0];
+            if (nooblineBlock) {
+                return {
+                    file: lf,
+                    state: nooblineBlock.state.value,
+                    y: nooblineBlock.pos.value.list[1]
+                };
+            }
+
+            return {
+                file: lf,
+                state: ensurePaletteState(lf, SUPPORT_BLOCK_OPTIONS[0]),
+                y: lf.layerY
+            };
+        }
+
+        function nooblineFallbackForFiles(files) {
+            for (const lf of files) {
+                const fallback = nooblineFallbackForFile(lf);
+                if (fallback) return fallback;
+            }
+            return null;
+        }
+
+        function combinedNooblineBlocks(minGridX, minGridZ, width) {
+            const frontFiles = loadedFiles.filter(lf => lf.nooblineZ !== null && lf.gridZ === minGridZ);
+            const fallback = nooblineFallbackForFiles(frontFiles.length > 0 ? frontFiles : loadedFiles);
+            if (!fallback) return [];
+
+            const nooblineBlocks = [];
+            const usedX = new Set();
+
+            for (const lf of frontFiles) {
+                const offsetX = (lf.gridX - minGridX) * 128;
+                for (const block of nooblineBlocksForFile(lf)) {
+                    const pos = block.pos.value.list;
+                    const x = offsetX + pos[0] - lf.minX;
+                    if (x < 0 || x >= width || usedX.has(x)) continue;
+
+                    nooblineBlocks.push({
+                        x,
+                        y: pos[1],
+                        z: -1,
+                        state: block.state.value,
+                        file: lf
+                    });
+                    usedX.add(x);
+                }
+            }
+
+            for (let x = 0; x < width; x++) {
+                if (usedX.has(x)) continue;
+                nooblineBlocks.push({
+                    x,
+                    y: fallback.y,
+                    z: -1,
+                    state: fallback.state,
+                    file: fallback.file
+                });
+            }
+
+            return nooblineBlocks;
+        }
+
+        function nooblineBlocksForChunk(lf, cX, cZ, chunkW, chunkH) {
+            const fallback = nooblineFallbackForFile(lf);
+            if (!fallback) return [];
+
+            const chunkBlocks = [];
+            const usedX = new Set();
+            const chunkStartX = cX * chunkW;
+
+            if (cZ === 0) {
+                for (const block of nooblineBlocksForFile(lf)) {
+                    const pos = block.pos.value.list;
+                    const globalX = pos[0] - lf.minX;
+                    const normX = globalX - chunkStartX;
+                    if (normX < 0 || normX >= chunkW || usedX.has(normX)) continue;
+
+                    chunkBlocks.push({
+                        normX,
+                        rawY: pos[1],
+                        normZ: -1,
+                        state: block.state.value,
+                        file: lf
+                    });
+                    usedX.add(normX);
+                }
+            } else {
+                const previousGlobalZ = cZ * chunkH - 1;
+                for (let x = 0; x < chunkW; x++) {
+                    const globalX = chunkStartX + x;
+                    const cell = globalX >= 0 && globalX < mapWidth && previousGlobalZ >= 0 && previousGlobalZ < mapHeight
+                        ? gridMap[previousGlobalZ * mapWidth + globalX]
+                        : null;
+                    chunkBlocks.push({
+                        normX: x,
+                        rawY: cell ? cell.rawY : fallback.y,
+                        normZ: -1,
+                        state: fallback.state,
+                        file: fallback.file
+                    });
+                    usedX.add(x);
+                }
+            }
+
+            for (let x = 0; x < chunkW; x++) {
+                if (usedX.has(x)) continue;
+                chunkBlocks.push({
+                    normX: x,
+                    rawY: fallback.y,
+                    normZ: -1,
+                    state: fallback.state,
+                    file: fallback.file
+                });
+            }
+
+            return chunkBlocks;
+        }
+
+        function createCombinedNbtRoot() {
+            if (loadedFiles.length === 0) throw new Error("Upload files first.");
+
+            const minGridX = Math.min(...loadedFiles.map(lf => lf.gridX));
+            const minGridZ = Math.min(...loadedFiles.map(lf => lf.gridZ));
+            const sourceBlocks = [];
+
+            for (const lf of loadedFiles) {
+                const offsetX = (lf.gridX - minGridX) * 128;
+                const offsetZ = (lf.gridZ - minGridZ) * 128;
+
+                for (const block of lf.blocksList) {
+                    if (isNooblineBlock(lf, block)) continue;
+
+                    const pos = block.pos.value.list;
+                    const globalX = offsetX + pos[0] - lf.minX;
+                    const globalZ = offsetZ + pos[2] - lf.minZ;
+                    let finalState = block.state.value;
+
+                    if (globalX >= 0 && globalX < mapWidth && globalZ >= 0 && globalZ < mapHeight) {
+                        const cell = gridMap[globalZ * mapWidth + globalX];
+                        if (cell && cell.blockRef === block) {
+                            finalState = cell.blockRef.state.value;
+                        }
+                    }
+
+                    sourceBlocks.push({
+                        x: globalX,
+                        y: pos[1],
+                        z: globalZ,
+                        state: finalState,
+                        file: lf
+                    });
+                }
+            }
+
+            if (sourceBlocks.length === 0) throw new Error("No blocks available to export.");
+
+            const maxSourceX = sourceBlocks.reduce((max, block) => Math.max(max, block.x), -1);
+            const nooblineWidth = Math.max(mapWidth, maxSourceX + 1);
+            sourceBlocks.push(...combinedNooblineBlocks(minGridX, minGridZ, nooblineWidth));
+
+            let minX = Infinity, minY = Infinity, minZ = Infinity;
+            let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+            for (const block of sourceBlocks) {
+                if (block.x < minX) minX = block.x;
+                if (block.y < minY) minY = block.y;
+                if (block.z < minZ) minZ = block.z;
+                if (block.x > maxX) maxX = block.x;
+                if (block.y > maxY) maxY = block.y;
+                if (block.z > maxZ) maxZ = block.z;
+            }
+
+            const unifiedPalette = [];
+            const paletteMap = new Map();
+            const finalNbtBlocks = [];
+
+            for (const block of sourceBlocks) {
+                const paletteEntry = paletteEntryOrAir(block.file, block.state);
+                const blockKey = paletteEntryKey(paletteEntry);
+
+                if (!paletteMap.has(blockKey)) {
+                    paletteMap.set(blockKey, unifiedPalette.length);
+                    unifiedPalette.push(paletteEntry);
+                }
+
+                finalNbtBlocks.push({
+                    pos: { type: 9, name: "pos", value: { type: 3, list: [block.x - minX, block.y - minY, block.z - minZ] } },
+                    state: { type: 3, name: "state", value: paletteMap.get(blockKey) }
+                });
+            }
+
+            const firstFile = loadedFiles[0];
+            return {
+                type: 10, name: "", value: {
+                    DataVersion: { type: 3, name: "DataVersion", value: firstFile.nbtRoot.value.DataVersion ? firstFile.nbtRoot.value.DataVersion.value : 2586 },
+                    size: { type: 9, name: "size", value: { type: 3, list: [maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1] } },
+                    palette: { type: 9, name: "palette", value: { type: 10, list: unifiedPalette } },
+                    blocks: { type: 9, name: "blocks", value: { type: 10, list: finalNbtBlocks } },
+                    entities: { type: 9, name: "entities", value: { type: 10, list: [] } }
+                }
+            };
+        }
+
+        function downloadCombinedNbt() {
+            if (loadedFiles.length === 0) { alert("Upload files first."); return; }
+
+            const button = document.getElementById('saveSingleBtn');
+            const originalText = button.innerText;
+            button.innerText = "Building NBT...";
+
+            try {
+                const writer = new NBTWriter();
+                writer.writeTag(createCombinedNbtRoot());
+                downloadBlob(pako.gzip(writer.getOutput()), `${originalFileName || "mapart"}_combined.nbt`);
+            } catch (error) {
+                alert("Failed to export single NBT: " + error.message);
+            }
+
+            button.innerText = originalText;
+        }
+
+        async function processExports(asZip) {
+            if (loadedFiles.length === 0) { alert("Upload files first."); return; }
+            
+            const btnId = asZip ? 'saveZipBtn' : 'saveIndivBtn';
+            const originalText = document.getElementById(btnId).innerText;
+            document.getElementById(btnId).innerText = asZip ? "Compressing ZIP..." : "Downloading...";
+            
+            try {
+                const zip = new JSZip();
+                const needsSplit = loadedFiles.length === 1 && (mapWidth > 128 || mapHeight > 128);
+                let filesToExport = []; 
+                
+                if (needsSplit) {
+                    const chunkW = 128;
+                    const chunkH = 128;
+                    const lf = loadedFiles[0];
+                    let maxExportGlobalX = mapWidth - 1;
+                    let maxExportGlobalZ = mapHeight - 1;
+                    for (const b of lf.blocksList) {
+                        if (isNooblineBlock(lf, b)) continue;
+                        const globalX = b.pos.value.list[0] - lf.minX;
+                        const globalZ = b.pos.value.list[2] - lf.minZ;
+                        if (globalX > maxExportGlobalX) maxExportGlobalX = globalX;
+                        if (globalZ > maxExportGlobalZ) maxExportGlobalZ = globalZ;
+                    }
+                    const cols = Math.ceil((maxExportGlobalX + 1) / chunkW);
+                    const rows = Math.ceil((maxExportGlobalZ + 1) / chunkH);
+
+                    for (let cZ = 0; cZ < rows; cZ++) {
+                        for (let cX = 0; cX < cols; cX++) {
+                            let chunkBlocks = [];
+                            let cMinX = Infinity, cMinY = Infinity, cMinZ = Infinity;
+                            let cMaxX = -Infinity, cMaxY = -Infinity, cMaxZ = -Infinity;
+
+                            for (const b of lf.blocksList) {
+                                if (isNooblineBlock(lf, b)) continue;
+                                const rawX = b.pos.value.list[0];
+                                const rawY = b.pos.value.list[1];
+                                const rawZ = b.pos.value.list[2];
+                                
+                                const globalX = rawX - lf.minX;
+                                const globalZ = rawZ - lf.minZ;
+                                
+                                const targetCX = Math.max(0, Math.min(cols - 1, Math.floor(globalX / chunkW)));
+                                const targetCZ = Math.max(0, Math.min(rows - 1, Math.floor(globalZ / chunkH)));
+
+                                if (targetCX === cX && targetCZ === cZ) {
+                                    let finalState = b.state.value;
+                                    
+                                    if (globalX >= 0 && globalX < mapWidth && globalZ >= 0 && globalZ < mapHeight) {
+                                        const cell = gridMap[globalZ * mapWidth + globalX];
+                                        if (cell && cell.blockRef === b) {
+                                            finalState = cell.blockRef.state.value;
+                                        }
+                                    }
+
+                                    if (rawX < cMinX) cMinX = rawX;
+                                    if (rawX > cMaxX) cMaxX = rawX;
+                                    if (rawY < cMinY) cMinY = rawY;
+                                    if (rawY > cMaxY) cMaxY = rawY;
+                                    if (rawZ < cMinZ) cMinZ = rawZ;
+                                    if (rawZ > cMaxZ) cMaxZ = rawZ;
+
+                                    const normX = globalX - (cX * chunkW);
+                                    const normZ = globalZ - (cZ * chunkH);
+
+                                    chunkBlocks.push({ normX, rawY, normZ, state: finalState, file: lf });
+                                }
+                            }
+
+                            if (chunkBlocks.length === 0) continue;
+
+                            for (const nooblineBlock of nooblineBlocksForChunk(lf, cX, cZ, chunkW, chunkH)) {
+                                chunkBlocks.push(nooblineBlock);
+                                if (nooblineBlock.rawY < cMinY) cMinY = nooblineBlock.rawY;
+                                if (nooblineBlock.rawY > cMaxY) cMaxY = nooblineBlock.rawY;
+                            }
+
+                            const unifiedPalette = [];
+                            const paletteMap = new Map();
+                            const finalNbtBlocks = [];
+                            let cMinNormZ = Infinity;
+                            let cMaxNormZ = -Infinity;
+
+                            for (const cb of chunkBlocks) {
+                                if (cb.normZ < cMinNormZ) cMinNormZ = cb.normZ;
+                                if (cb.normZ > cMaxNormZ) cMaxNormZ = cb.normZ;
+                            }
+
+                            for (const cb of chunkBlocks) {
+                                const origPaletteTag = paletteEntryOrAir(cb.file, cb.state);
+                                const blockKey = paletteEntryKey(origPaletteTag);
+                                
+                                if (!paletteMap.has(blockKey)) {
+                                    paletteMap.set(blockKey, unifiedPalette.length);
+                                    unifiedPalette.push(origPaletteTag);
+                                }
+                                const newId = paletteMap.get(blockKey);
+
+                                finalNbtBlocks.push({
+                                    pos: { type: 9, name: "pos", value: { type: 3, list: [cb.normX, cb.rawY - cMinY, cb.normZ - cMinNormZ] } },
+                                    state: { type: 3, name: "state", value: newId }
+                                });
+                            }
+
+                            const chunkNbtRoot = {
+                                type: 10, name: "", value: {
+                                    DataVersion: { type: 3, name: "DataVersion", value: lf.nbtRoot.value.DataVersion ? lf.nbtRoot.value.DataVersion.value : 2586 },
+                                    size: { type: 9, name: "size", value: { type: 3, list: [128, cMaxY - cMinY + 1, cMaxNormZ - cMinNormZ + 1] } },
+                                    palette: { type: 9, name: "palette", value: { type: 10, list: unifiedPalette } },
+                                    blocks: { type: 9, name: "blocks", value: { type: 10, list: finalNbtBlocks } },
+                                    entities: { type: 9, name: "entities", value: { type: 10, list: [] } }
+                                }
+                            };
+
+                            const writer = new NBTWriter();
+                            writer.writeTag(chunkNbtRoot);
+                            filesToExport.push({ name: `${originalFileName}_${cX}_${cZ}.nbt`, data: pako.gzip(writer.getOutput()) });
+                        }
+                    }
+                } else {
+                    for (let i = 0; i < loadedFiles.length; i++) {
+                        const lf = loadedFiles[i];
+                        updateStructureSize(lf);
+                        const writer = new NBTWriter();
+                        writer.writeTag(lf.nbtRoot);
+                        filesToExport.push({ name: lf.name, data: pako.gzip(writer.getOutput()) });
+                    }
+                }
+                
+                if (asZip) {
+                    for (const f of filesToExport) zip.file(f.name, f.data);
+                    const content = await zip.generateAsync({type:"blob"});
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(content);
+                    link.download = needsSplit ? `${originalFileName}_split.zip` : `${originalFileName}_edited.zip`;
+                    link.click();
+                } else {
+                    for (const f of filesToExport) {
+                        downloadBlob(f.data, f.name);
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                }
+                
+            } catch (error) {
+                alert("Failed to export: " + error.message);
+            }
+            document.getElementById(btnId).innerText = originalText;
+        }
+
+        document.getElementById('saveProfileBtn').addEventListener('click', saveCurrentProfile);
+        document.getElementById('saveZipBtn').addEventListener('click', () => processExports(true));
+        document.getElementById('saveSingleBtn').addEventListener('click', downloadCombinedNbt);
+        document.getElementById('saveIndivBtn').addEventListener('click', () => processExports(false));
+
+    </script>
+</body>
+</html>
