@@ -388,6 +388,25 @@
             justify-self: start;
             align-self: center;
         }
+        .palette-row.manual-shading {
+            grid-template-columns: calc((var(--palette-swatch-size) * 3) + 14px) minmax(0, 1fr);
+        }
+        .shade-swatches {
+            display: grid;
+            grid-template-columns: repeat(3, var(--palette-swatch-size));
+            gap: 4px;
+            justify-self: center;
+            align-self: center;
+        }
+        .tone-swatch {
+            cursor: pointer;
+            position: relative;
+        }
+        .tone-swatch.active {
+            border-color: #a6e3a1;
+            box-shadow: 0 0 0 2px #1e1e2e, 0 0 0 4px #a6e3a1;
+            z-index: 1;
+        }
         .palette.carpet-mode {
             width: 220px;
             gap: 4px;
@@ -433,6 +452,8 @@
         }
         body[data-palette-mode="carpet"] #profileImportControl,
         body[data-palette-mode="carpet"] #saveProfileBtn,
+        body[data-palette-mode="carpet"] #lockPaletteBtn,
+        body[data-palette-mode="carpet"] #shadingModeBtn,
         body[data-palette-mode="carpet"] #supportBlockLabel,
         body[data-palette-mode="carpet"] #supportBlockSelect {
             display: none;
@@ -461,13 +482,32 @@
             margin: 0;
         }
         .palette-header button {
-            padding: 6px 10px;
+            padding: 6px 8px;
             font-size: 11px;
         }
         .palette-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+        }
+        .palette-icon-btn {
+            width: 30px;
+            height: 28px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid transparent;
+            font-size: 12px;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .palette-icon-btn.active {
+            background-color: #a6e3a1;
+            border-color: #c3f5bf;
+        }
+        .palette-icon-btn:disabled {
+            opacity: 0.55;
         }
         body[data-palette-mode="carpet"] .palette-panel {
             width: var(--side-panel-width);
@@ -675,8 +715,10 @@
             <div class="palette-header">
                 <h3>Block Palette</h3>
                 <div class="palette-actions">
-                    <button id="fullscreenBtn" type="button">Fullscreen</button>
-                    <button id="saveProfileBtn">Save Profile</button>
+                    <button id="lockPaletteBtn" class="palette-icon-btn" type="button" data-tooltip="Lock palette dropdowns">L</button>
+                    <button id="shadingModeBtn" class="palette-icon-btn" type="button" data-tooltip="Auto shading uses the imported height shading">A</button>
+                    <button id="fullscreenBtn" class="palette-icon-btn" type="button" data-tooltip="Fullscreen">[]</button>
+                    <button id="saveProfileBtn" class="palette-icon-btn" type="button" data-tooltip="Save palette profile">S</button>
                 </div>
             </div>
             <div class="palette-status" id="paletteImportStatus"></div>
@@ -1504,6 +1546,12 @@
         const BLOCK_BY_KEY = new Map();
         const MAPART_BLOCK_BY_COLOR_AND_PRESET = new Map();
         const selectedBlockByColorId = {};
+        const MAP_TONES = ["dark", "normal", "light"];
+        const TONE_LABELS = {
+            dark: "Dark",
+            normal: "Normal",
+            light: "Light"
+        };
 
         MAP_COLOR_DATABASE.forEach(color => {
             COLORS_BY_ID.set(color.id, color);
@@ -1526,6 +1574,9 @@
         let selectedColor = COLORS_BY_ID.get("white") || MAP_COLOR_DATABASE[0];
         let selectedSupportBlock = DEFAULT_SUPPORT_BLOCK;
         let paletteMode = "fullblock";
+        let shadingMode = "auto";
+        let selectedTone = "normal";
+        let paletteDropdownsLocked = false;
         const hotbarSlots = new Array(9).fill(null);
         let activeHotbarSlot = null;
         let heldHotbarSlot = null;
@@ -1587,6 +1638,8 @@
         const instantTooltip = document.getElementById('instantTooltip');
         const toolScrollTooltip = document.getElementById('toolScrollTooltip');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const lockPaletteBtn = document.getElementById('lockPaletteBtn');
+        const shadingModeBtn = document.getElementById('shadingModeBtn');
         const undoBtn = document.getElementById('undoBtn');
         const redoBtn = document.getElementById('redoBtn');
         const textToolPopup = document.getElementById('textToolPopup');
@@ -1856,6 +1909,22 @@
             return paletteMode === "fullblock" || paletteMode === "staircased";
         }
 
+        function manualShadingAvailable() {
+            return paletteMode === "staircased";
+        }
+
+        function manualShadingActive() {
+            return manualShadingAvailable() && shadingMode === "manual";
+        }
+
+        function normalizeTone(tone) {
+            return MAP_TONES.includes(tone) ? tone : "normal";
+        }
+
+        function selectedDisplayTone() {
+            return manualShadingActive() ? selectedTone : "normal";
+        }
+
         function supportGenerationEnabled() {
             return !!(selectedSupportBlock && selectedSupportBlock.key !== NO_SUPPORT_BLOCK_KEY);
         }
@@ -1911,6 +1980,18 @@
             return color.blocks.find(block => block.key === selectedBlockByColorId[color.id]) || color.blocks[0];
         }
 
+        function selectPaletteColor(color, tone = selectedTone) {
+            selectedColor = color;
+            selectedTone = normalizeTone(tone);
+            if (heldHotbarSlot !== null) {
+                assignHotbarSlot(heldHotbarSlot, color, selectedDisplayTone());
+            } else {
+                syncActiveHotbarSlot();
+            }
+            renderPaletteRows();
+            updateCursorPreview(lastMouseX, lastMouseZ);
+        }
+
         function hotbarSlotFromKeyEvent(event) {
             if (/^[1-9]$/.test(event.key)) return Number(event.key) - 1;
             const digitMatch = event.code && event.code.match(/^Digit([1-9])$/);
@@ -1931,17 +2012,21 @@
             const color = COLORS_BY_ID.get(slot.colorId);
             if (!color) return null;
             const block = color.blocks.find(option => option.key === slot.blockKey) || selectedBlockForColor(color);
-            return { color, block };
+            const tone = normalizeTone(slot.tone);
+            return { color, block, tone };
         }
 
-        function currentHotbarSnapshot(color = selectedColor) {
+        function currentHotbarSnapshot(color = selectedColor, tone = selectedDisplayTone()) {
             const block = selectedBlockForColor(color);
-            return block ? { colorId: color.id, blockKey: block.key } : null;
+            return block ? { colorId: color.id, blockKey: block.key, tone: normalizeTone(tone) } : null;
         }
 
         function hotbarSlotMatchesSelection(slot) {
             const current = currentHotbarSnapshot();
-            return !!(slot && current && slot.colorId === current.colorId && slot.blockKey === current.blockKey);
+            return !!(slot && current &&
+                slot.colorId === current.colorId &&
+                slot.blockKey === current.blockKey &&
+                (!manualShadingActive() || normalizeTone(slot.tone) === selectedTone));
         }
 
         function syncActiveHotbarSlot() {
@@ -1950,9 +2035,9 @@
             activeHotbarSlot = matchIndex === -1 ? null : matchIndex;
         }
 
-        function assignHotbarSlot(slotIndex, color = selectedColor) {
+        function assignHotbarSlot(slotIndex, color = selectedColor, tone = selectedDisplayTone()) {
             if (slotIndex === null || slotIndex < 0 || slotIndex >= hotbarSlots.length) return;
-            const snapshot = currentHotbarSnapshot(color);
+            const snapshot = currentHotbarSnapshot(color, tone);
             if (!snapshot) return;
             hotbarSlots[slotIndex] = snapshot;
             activeHotbarSlot = slotIndex;
@@ -1965,6 +2050,9 @@
             selectedColor = info.color;
             if (info.block && info.color.blocks.some(block => block.key === info.block.key)) {
                 selectedBlockByColorId[info.color.id] = info.block.key;
+            }
+            if (manualShadingAvailable()) {
+                selectedTone = normalizeTone(info.tone);
             }
             activeHotbarSlot = slotIndex;
             renderPaletteRows();
@@ -1991,7 +2079,7 @@
                 button.className = `hotbar-slot ${slot ? "filled" : "empty"} ${activeHotbarSlot === index ? "active" : ""} ${heldHotbarSlot === index ? "assign-target" : ""}`;
                 button.dataset.slot = String(index + 1);
                 button.dataset.tooltip = info
-                    ? info.block.displayName
+                    ? `${info.block.displayName}${manualShadingActive() ? ` (${TONE_LABELS[info.tone]})` : ""}`
                     : `Hold ${index + 1} and select a color to assign this slot`;
                 button.onclick = () => {
                     if (slot) selectHotbarSlot(index);
@@ -1999,14 +2087,16 @@
 
                 const fill = document.createElement('div');
                 fill.className = "hotbar-slot-fill";
-                fill.style.backgroundColor = info ? info.color.hex : "#313244";
+                fill.style.backgroundColor = info ? rgbToCss(rgbForMapTone(info.color, manualShadingActive() ? info.tone : "normal")) : "#313244";
                 button.appendChild(fill);
                 hotbarSlotsElement.appendChild(button);
             });
 
             const selectedBlock = selectedBlockForColor(selectedColor);
-            selectedBlockFill.style.backgroundColor = selectedColor ? selectedColor.hex : "#313244";
-            selectedBlockPreview.dataset.tooltip = selectedBlock ? selectedBlock.displayName : "Current selected block";
+            selectedBlockFill.style.backgroundColor = selectedColor ? rgbToCss(rgbForMapTone(selectedColor, selectedDisplayTone())) : "#313244";
+            selectedBlockPreview.dataset.tooltip = selectedBlock
+                ? `${selectedBlock.displayName}${manualShadingActive() ? ` (${TONE_LABELS[selectedTone]})` : ""}`
+                : "Current selected block";
         }
 
         function setPaletteStatus(message) {
@@ -2024,31 +2114,76 @@
             supportBlockSelect.value = selectedSupportBlock.key;
         }
 
+        function renderPaletteControls() {
+            if (lockPaletteBtn) {
+                lockPaletteBtn.disabled = !usesBlockPaletteMode();
+                lockPaletteBtn.classList.toggle("active", paletteDropdownsLocked && usesBlockPaletteMode());
+                lockPaletteBtn.textContent = paletteDropdownsLocked && usesBlockPaletteMode() ? "UL" : "L";
+                lockPaletteBtn.dataset.tooltip = paletteDropdownsLocked
+                    ? "Unlock palette dropdowns"
+                    : "Lock palette dropdowns";
+            }
+
+            if (shadingModeBtn) {
+                const available = manualShadingAvailable();
+                shadingModeBtn.disabled = !available;
+                shadingModeBtn.classList.toggle("active", manualShadingActive());
+                shadingModeBtn.textContent = manualShadingActive() ? "M" : "A";
+                shadingModeBtn.dataset.tooltip = available
+                    ? (manualShadingActive()
+                        ? "Manual shading paints the selected dark, normal, or light shade"
+                        : "Auto shading uses the imported height shading")
+                    : "Manual shading is only available for staircased maps";
+            }
+
+            if (fullscreenBtn) {
+                fullscreenBtn.textContent = isCanvasFullscreen() ? "X" : "[]";
+                fullscreenBtn.dataset.tooltip = isCanvasFullscreen() ? "Exit fullscreen" : "Fullscreen";
+            }
+        }
+
         function renderPaletteRows() {
             const paletteContainer = document.getElementById('paletteContainer');
             ensureSelectedColorForMode();
+            if (!manualShadingAvailable()) {
+                shadingMode = "auto";
+                selectedTone = "normal";
+            }
+            if (!usesBlockPaletteMode()) {
+                paletteDropdownsLocked = false;
+            }
             paletteContainer.innerHTML = "";
             paletteContainer.classList.toggle("carpet-mode", paletteMode === "carpet");
             paletteContainer.classList.toggle("fullblock-mode", usesBlockPaletteMode());
 
             paletteColorsForMode().forEach(color => {
                 const row = document.createElement('div');
-                row.className = `palette-row ${color.id === selectedColor.id ? 'active' : ''}`;
+                row.className = `palette-row ${manualShadingActive() ? "manual-shading" : ""} ${color.id === selectedColor.id ? 'active' : ''}`;
                 row.onclick = () => {
-                    selectedColor = color;
-                    if (heldHotbarSlot !== null) {
-                        assignHotbarSlot(heldHotbarSlot, color);
-                    } else {
-                        syncActiveHotbarSlot();
-                    }
-                    renderPaletteRows();
-                    updateCursorPreview(lastMouseX, lastMouseZ);
+                    selectPaletteColor(color, selectedTone);
                 };
                 
-                const swatch = document.createElement('div');
-                swatch.className = 'color-swatch';
-                swatch.style.backgroundColor = color.hex;
-                row.appendChild(swatch);
+                if (manualShadingActive()) {
+                    const swatches = document.createElement('div');
+                    swatches.className = "shade-swatches";
+                    MAP_TONES.forEach(tone => {
+                        const swatch = document.createElement('div');
+                        swatch.className = `color-swatch tone-swatch ${color.id === selectedColor.id && selectedTone === tone ? "active" : ""}`;
+                        swatch.style.backgroundColor = rgbToCss(rgbForMapTone(color, tone));
+                        swatch.dataset.tooltip = `${TONE_LABELS[tone]} shade`;
+                        swatch.onclick = event => {
+                            event.stopPropagation();
+                            selectPaletteColor(color, tone);
+                        };
+                        swatches.appendChild(swatch);
+                    });
+                    row.appendChild(swatches);
+                } else {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch';
+                    swatch.style.backgroundColor = color.hex;
+                    row.appendChild(swatch);
+                }
 
                 if (paletteMode === "carpet") {
                     const label = document.createElement('span');
@@ -2056,6 +2191,7 @@
                     row.appendChild(label);
                 } else {
                     const select = document.createElement('select');
+                    select.disabled = paletteDropdownsLocked;
                     select.onclick = e => e.stopPropagation();
                     color.blocks.forEach(block => {
                         const option = document.createElement('option');
@@ -2066,20 +2202,14 @@
                     select.value = selectedBlockForColor(color).key;
                     select.onchange = () => {
                         selectedBlockByColorId[color.id] = select.value;
-                        selectedColor = color;
-                        if (heldHotbarSlot !== null) {
-                            assignHotbarSlot(heldHotbarSlot, color);
-                        } else {
-                            syncActiveHotbarSlot();
-                        }
-                        renderPaletteRows();
-                        updateCursorPreview(lastMouseX, lastMouseZ);
+                        selectPaletteColor(color, selectedTone);
                     };
                     row.appendChild(select);
                 }
 
                 paletteContainer.appendChild(row);
             });
+            renderPaletteControls();
             renderHotbar();
         }
 
@@ -2095,6 +2225,9 @@
             for (const color of MAP_COLOR_DATABASE) {
                 selectedBlockByColorId[color.id] = color.blocks[0].key;
             }
+            shadingMode = "auto";
+            selectedTone = "normal";
+            paletteDropdownsLocked = false;
             resetHotbarSlots();
             document.getElementById('paletteProfileInput').value = "";
             setPaletteStatus("");
@@ -2141,6 +2274,20 @@
         supportBlockSelect.addEventListener('change', () => {
             selectedSupportBlock = SUPPORT_BLOCK_OPTIONS.find(block => block.key === supportBlockSelect.value) || DEFAULT_SUPPORT_BLOCK;
             if (usesBlockPaletteMode()) rebuildAllSupports();
+        });
+
+        lockPaletteBtn.addEventListener('click', () => {
+            if (!usesBlockPaletteMode()) return;
+            paletteDropdownsLocked = !paletteDropdownsLocked;
+            renderPaletteRows();
+        });
+
+        shadingModeBtn.addEventListener('click', () => {
+            if (!manualShadingAvailable()) return;
+            shadingMode = manualShadingActive() ? "auto" : "manual";
+            if (!manualShadingActive()) selectedTone = "normal";
+            renderPaletteRows();
+            updateCursorPreview(lastMouseX, lastMouseZ);
         });
 
         renderSupportSelect();
@@ -2926,6 +3073,161 @@
             return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
         }
 
+        function toneDelta(tone) {
+            if (tone === "light") return 1;
+            if (tone === "dark") return -1;
+            return 0;
+        }
+
+        function collectColumnCells(globalX) {
+            const cells = [];
+            if (globalX < 0 || globalX >= mapWidth) return cells;
+            for (let z = 0; z < mapHeight; z++) {
+                const cell = gridMap[z * mapWidth + globalX];
+                if (cell) cells.push(cell);
+            }
+            return cells;
+        }
+
+        function setCellY(cell, nextY) {
+            nextY = Math.max(0, Math.round(nextY));
+            if (!cell || cell.rawY === nextY) return false;
+
+            const lf = cell.file;
+            const pos = cell.blockRef.pos.value.list;
+            const oldKey = coordKey(pos[0], pos[1], pos[2]);
+            const newKey = coordKey(pos[0], nextY, pos[2]);
+
+            if (lf.blockLookup.get(oldKey) === cell.blockRef) {
+                lf.blockLookup.delete(oldKey);
+            }
+
+            const existing = lf.blockLookup.get(newKey);
+            if (existing && existing !== cell.blockRef && !isEditableArtworkBlock(lf, existing)) {
+                removeBlockFromFile(lf, existing);
+                lf.supportCreatedKeys.delete(newKey);
+            }
+
+            pos[1] = nextY;
+            cell.rawY = nextY;
+            lf.blockLookup.set(newKey, cell.blockRef);
+
+            if (lf.topMapBlockByRawXZ) {
+                const topKey = `${cell.rawX},${cell.rawZ}`;
+                const top = lf.topMapBlockByRawXZ.get(topKey);
+                if (top && top.block === cell.blockRef) top.y = nextY;
+            }
+
+            return true;
+        }
+
+        function solveColumnTones(globalX, toneOverrides) {
+            const columnCells = collectColumnCells(globalX);
+            if (columnCells.length === 0) return false;
+
+            const solvedY = new Map();
+            let minSolvedY = Infinity;
+
+            for (let i = 0; i < columnCells.length; i++) {
+                const cell = columnCells[i];
+                const tone = normalizeTone(toneOverrides.get(cell) || staircasedToneForCell(cell));
+                let previousY = null;
+
+                if (i > 0 && columnCells[i - 1].globalZ === cell.globalZ - 1) {
+                    previousY = solvedY.get(columnCells[i - 1]);
+                } else {
+                    previousY = previousStaircaseY(cell);
+                }
+
+                const nextY = previousY === null ? cell.rawY : previousY + toneDelta(tone);
+                solvedY.set(cell, nextY);
+                if (nextY < minSolvedY) minSolvedY = nextY;
+            }
+
+            const shiftUp = minSolvedY < 0 ? -minSolvedY : 0;
+            let changed = false;
+            solvedY.forEach((nextY, cell) => {
+                if (setCellY(cell, nextY + shiftUp)) changed = true;
+            });
+            return changed;
+        }
+
+        function applyManualShadingSolver(targetCells) {
+            if (!manualShadingActive() || targetCells.length === 0) return false;
+
+            const overridesByColumn = new Map();
+            for (const cell of targetCells) {
+                if (!overridesByColumn.has(cell.globalX)) overridesByColumn.set(cell.globalX, new Map());
+                overridesByColumn.get(cell.globalX).set(cell, selectedTone);
+            }
+
+            let changed = false;
+            overridesByColumn.forEach((overrides, globalX) => {
+                if (solveColumnTones(globalX, overrides)) changed = true;
+            });
+            return changed;
+        }
+
+        function uniqueCells(cells) {
+            const unique = [];
+            const seen = new Set();
+            for (const cell of cells) {
+                if (!cell || seen.has(cell)) continue;
+                seen.add(cell);
+                unique.push(cell);
+            }
+            return unique;
+        }
+
+        function supportRecordsForPaintTargets(targetCells) {
+            const cellsToRecord = new Set(targetCells);
+            if (manualShadingActive()) {
+                const columns = new Set(targetCells.map(cell => cell.globalX));
+                columns.forEach(globalX => {
+                    collectColumnCells(globalX).forEach(cell => cellsToRecord.add(cell));
+                });
+            }
+            return Array.from(cellsToRecord, cell => supportChangeRecordForCell(cell));
+        }
+
+        function paintCells(cells, updateCanvasDirectly) {
+            const targetBlock = selectedBlockForColor(selectedColor);
+            if (!targetBlock) return false;
+
+            const targetCells = [];
+            for (const cell of uniqueCells(cells)) {
+                const targetPaletteIndex = ensurePaletteState(cell.file, targetBlock);
+                const stateChanged = cell.blockRef.state.value !== targetPaletteIndex;
+                const toneChanged = manualShadingActive() && staircasedToneForCell(cell) !== selectedTone;
+                if (!stateChanged && !toneChanged) continue;
+                targetCells.push({ cell, targetPaletteIndex });
+            }
+
+            if (targetCells.length === 0) return false;
+
+            const changedCells = targetCells.map(item => item.cell);
+            const supportRecords = supportRecordsForPaintTargets(changedCells);
+
+            for (const item of targetCells) {
+                item.cell.blockRef.state.value = item.targetPaletteIndex;
+                item.cell.colorId = selectedColor.id;
+                item.cell.blockKey = targetBlock.key;
+            }
+
+            const yChanged = applyManualShadingSolver(changedCells);
+            syncSupportsForCells(supportRecords);
+
+            if (updateCanvasDirectly && !manualShadingActive() && !yChanged) {
+                for (const { cell } of targetCells) {
+                    ctx.fillStyle = rgbToCss(rgbForCellColor(cell, selectedColor));
+                    ctx.fillRect(cell.globalX, cell.globalZ, 1, 1);
+                }
+            } else {
+                renderFullCanvas();
+            }
+            return true;
+        }
+
         function renderFullCanvas() {
             if (mapWidth === 0 || mapHeight === 0) return;
             const imageData = ctx.createImageData(mapWidth, mapHeight);
@@ -2951,40 +3253,26 @@
             ctx.putImageData(imageData, 0, 0);
         }
 
-        function applyBrush(cx, cz, updateCanvasDirectly) {
+        function brushCellsAt(cx, cz) {
             const size = parseInt(document.getElementById('brushSize').value) || 1;
             const offsetStart = Math.floor(size / 2);
             const offsetEnd = size - offsetStart - 1; 
-            
-            let changed = false;
-            const changedCells = [];
-            const targetBlock = selectedBlockForColor(selectedColor);
+            const cells = [];
+
             for(let bx = cx - offsetStart; bx <= cx + offsetEnd; bx++) {
                 for(let bz = cz - offsetStart; bz <= cz + offsetEnd; bz++) {
                     if (bx >= 0 && bx < mapWidth && bz >= 0 && bz < mapHeight) {
                         const cell = gridMap[bz * mapWidth + bx];
-                        
-                        if (cell) {
-                            const targetPaletteIndex = ensurePaletteState(cell.file, targetBlock);
-                            
-                            if (cell.blockRef.state.value !== targetPaletteIndex) {
-                                const supportChange = supportChangeRecordForCell(cell);
-                                cell.blockRef.state.value = targetPaletteIndex;
-                                cell.colorId = selectedColor.id;
-                                cell.blockKey = targetBlock.key;
-                                changedCells.push(supportChange);
-                                changed = true;
-                                if (updateCanvasDirectly) {
-                                    ctx.fillStyle = rgbToCss(rgbForCellColor(cell, selectedColor));
-                                    ctx.fillRect(bx, bz, 1, 1);
-                                }
-                            }
-                        }
+                        if (cell) cells.push(cell);
                     }
                 }
             }
-            if (changedCells.length > 0) syncSupportsForCells(changedCells);
-            return changed;
+
+            return cells;
+        }
+
+        function applyBrush(cx, cz, updateCanvasDirectly) {
+            return paintCells(brushCellsAt(cx, cz), updateCanvasDirectly);
         }
 
         function cellAtGlobal(x, z) {
@@ -3046,34 +3334,17 @@
             const pixels = textPixelsFor(text, size);
             if (pixels.length === 0) return false;
 
-            let changed = false;
-            const changedCells = [];
-            const targetBlock = selectedBlockForColor(selectedColor);
+            const cells = [];
 
             for (const pixel of pixels) {
                 const x = anchorX + pixel.x;
                 const z = anchorZ + pixel.z;
                 const cell = cellAtGlobal(x, z);
                 if (!cell) continue;
-
-                const targetPaletteIndex = ensurePaletteState(cell.file, targetBlock);
-                if (cell.blockRef.state.value !== targetPaletteIndex) {
-                    const supportChange = supportChangeRecordForCell(cell);
-                    cell.blockRef.state.value = targetPaletteIndex;
-                    cell.colorId = selectedColor.id;
-                    cell.blockKey = targetBlock.key;
-                    changedCells.push(supportChange);
-                    changed = true;
-
-                    if (updateCanvasDirectly) {
-                        ctx.fillStyle = rgbToCss(rgbForCellColor(cell, selectedColor));
-                        ctx.fillRect(x, z, 1, 1);
-                    }
-                }
+                cells.push(cell);
             }
 
-            if (changedCells.length > 0) syncSupportsForCells(changedCells);
-            return changed;
+            return paintCells(cells, updateCanvasDirectly);
         }
 
         function isTextToolPopupOpen() {
@@ -3261,9 +3532,12 @@
             if (info.color.blocks.some(block => block.key === info.block.key)) {
                 selectedBlockByColorId[info.color.id] = info.block.key;
             }
+            if (manualShadingAvailable()) {
+                selectedTone = staircasedToneForCell(cell);
+            }
 
             if (heldHotbarSlot !== null) {
-                const snapshot = currentHotbarSnapshot(info.color);
+                const snapshot = currentHotbarSnapshot(info.color, selectedDisplayTone());
                 if (snapshot) {
                     hotbarSlots[heldHotbarSlot] = snapshot;
                     activeHotbarSlot = heldHotbarSlot;
@@ -3292,12 +3566,16 @@
 
             const sourceColorId = sourceInfo.color.id;
             const sourceBlockKey = sourceInfo.block.key;
-            if (sourceColorId === selectedColor.id && sourceBlockKey === targetBlock.key) return false;
+            const sourceTone = staircasedToneForCell(startCell);
+            if (
+                sourceColorId === selectedColor.id &&
+                sourceBlockKey === targetBlock.key &&
+                (!manualShadingActive() || sourceTone === selectedTone)
+            ) return false;
 
-            const changedCells = [];
+            const cells = [];
             const visited = new Set();
             const stack = [{ x: cx, z: cz }];
-            let changed = false;
 
             while (stack.length > 0) {
                 const { x, z } = stack.pop();
@@ -3309,16 +3587,7 @@
 
                 const cell = gridMap[index];
                 if (!cellMatchesSource(cell, sourceColorId, sourceBlockKey)) continue;
-
-                const targetPaletteIndex = ensurePaletteState(cell.file, targetBlock);
-                if (cell.blockRef.state.value !== targetPaletteIndex) {
-                    const supportChange = supportChangeRecordForCell(cell);
-                    cell.blockRef.state.value = targetPaletteIndex;
-                    cell.colorId = selectedColor.id;
-                    cell.blockKey = targetBlock.key;
-                    changedCells.push(supportChange);
-                    changed = true;
-                }
+                cells.push(cell);
 
                 stack.push(
                     { x: x + 1, z },
@@ -3328,11 +3597,7 @@
                 );
             }
 
-            if (changedCells.length > 0) {
-                syncSupportsForCells(changedCells);
-                renderFullCanvas();
-            }
-            return changed;
+            return paintCells(cells, false);
         }
 
         function drawLine(x0, y0, x1, y1, updateCanvasDirectly) {
@@ -3341,22 +3606,24 @@
             let sx = (x0 < x1) ? 1 : -1;
             let sy = (y0 < y1) ? 1 : -1;
             let err = dx - dy;
-            let changed = false;
+            const cells = [];
 
             while(true) {
-                if (applyBrush(x0, y0, updateCanvasDirectly)) changed = true;
+                cells.push(...brushCellsAt(x0, y0));
                 if (x0 === x1 && y0 === y1) break;
                 let e2 = 2 * err;
                 if (e2 > -dy) { err -= dy; x0 += sx; }
                 if (e2 < dx) { err += dx; y0 += sy; }
             }
-            return changed;
+            return paintCells(cells, updateCanvasDirectly);
         }
 
         // --- PREVIEW CURSOR LAYER ---
         function previewFillStyleAt(x, z) {
             const cell = cellAtGlobal(x, z);
-            const rgb = cell ? rgbForCellColor(cell, selectedColor) : rgbForMapTone(selectedColor, "normal");
+            const rgb = manualShadingActive()
+                ? rgbForMapTone(selectedColor, selectedTone)
+                : (cell ? rgbForCellColor(cell, selectedColor) : rgbForMapTone(selectedColor, "normal"));
             return rgbToCss(rgb);
         }
 
@@ -3459,11 +3726,23 @@
         }
 
         // --- HISTORY (UNDO/REDO) ---
-        function saveCurrentStateToUndo() {
-            const snapshot = new Int32Array(gridMap.length);
+        function createEditorSnapshot() {
+            const states = new Int32Array(gridMap.length);
+            const ys = new Int32Array(gridMap.length);
             for(let i=0; i<gridMap.length; i++) {
-                snapshot[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
+                if (gridMap[i]) {
+                    states[i] = gridMap[i].blockRef.state.value;
+                    ys[i] = gridMap[i].rawY;
+                } else {
+                    states[i] = -1;
+                    ys[i] = -1;
+                }
             }
+            return { states, ys };
+        }
+
+        function saveCurrentStateToUndo() {
+            const snapshot = createEditorSnapshot();
             undoStack.push(snapshot);
             redoStack = []; 
             updateButtons();
@@ -3473,9 +3752,14 @@
             const changedCells = [];
             for(let i=0; i<gridMap.length; i++) {
                 const cell = gridMap[i];
-                if (cell && snapshot[i] !== -1 && cell.blockRef.state.value !== snapshot[i]) {
+                if (!cell) continue;
+
+                const state = snapshot.states ? snapshot.states[i] : snapshot[i];
+                const y = snapshot.ys ? snapshot.ys[i] : cell.rawY;
+                if (state !== -1 && (cell.blockRef.state.value !== state || cell.rawY !== y)) {
                     const supportChange = supportChangeRecordForCell(cell);
-                    cell.blockRef.state.value = snapshot[i];
+                    cell.blockRef.state.value = state;
+                    setCellY(cell, y);
                     updateCellMetadata(cell);
                     changedCells.push(supportChange);
                 }
@@ -3486,8 +3770,7 @@
 
         function undoLastChange() {
             if (undoStack.length === 0) return;
-            const currentState = new Int32Array(gridMap.length);
-            for(let i=0; i<gridMap.length; i++) currentState[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
+            const currentState = createEditorSnapshot();
             redoStack.push(currentState);
             
             const previousState = undoStack.pop();
@@ -3497,8 +3780,7 @@
 
         function redoLastChange() {
             if (redoStack.length === 0) return;
-            const currentState = new Int32Array(gridMap.length);
-            for(let i=0; i<gridMap.length; i++) currentState[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
+            const currentState = createEditorSnapshot();
             undoStack.push(currentState);
             
             const nextState = redoStack.pop();
@@ -3859,7 +4141,7 @@
 
         document.addEventListener('fullscreenchange', () => {
             const fullscreenActive = isCanvasFullscreen();
-            fullscreenBtn.textContent = fullscreenActive ? "Exit Fullscreen" : "Fullscreen";
+            renderPaletteControls();
 
             if (fullscreenActive) {
                 setupFullscreenHud();
