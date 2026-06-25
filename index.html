@@ -154,6 +154,88 @@
             scrollbar-color: #45475a #000;
         }
 
+        .fullscreen-hud {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .fullscreen-hud.hidden {
+            display: none;
+        }
+
+        .fullscreen-hud-panel {
+            position: fixed;
+            min-width: 160px;
+            max-width: calc(100vw - 40px);
+            background: rgba(49, 50, 68, 0.95);
+            border: 1px solid #6c7086;
+            border-radius: 8px;
+            box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+            color: #cdd6f4;
+            overflow: hidden;
+            pointer-events: auto;
+            user-select: none;
+        }
+
+        .fullscreen-hud-panel.dragging {
+            opacity: 0.9;
+        }
+
+        .fullscreen-hud-title {
+            background: #45475a;
+            border-bottom: 1px solid #6c7086;
+            color: #cdd6f4;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            line-height: 1;
+            padding: 7px 9px;
+        }
+
+        .fullscreen-hud-title-hint {
+            color: #a6adc8;
+            font-size: 11px;
+            font-weight: normal;
+            white-space: nowrap;
+        }
+
+        .fullscreen-hud-body {
+            padding: 8px;
+            user-select: auto;
+        }
+
+        .fullscreen-hud-body .tool-group {
+            flex-wrap: wrap;
+            max-width: 360px;
+        }
+
+        .fullscreen-hud-controls-body {
+            display: flex;
+            gap: 8px;
+        }
+
+        .fullscreen-hud-body .hotbar-area {
+            height: auto;
+            flex: 0 0 auto;
+            padding: 0;
+        }
+
+        .fullscreen-hud-body .palette-panel {
+            height: min(64vh, 620px);
+            max-height: min(64vh, 620px);
+            width: min(340px, calc(100vw - 40px));
+        }
+
+        .fullscreen-hud-body .palette-header {
+            margin-bottom: 6px;
+        }
+
         .canvas-wrapper {
             margin: auto;
             display: flex;
@@ -461,6 +543,66 @@
         .tool-scroll-tooltip.visible {
             opacity: 1;
         }
+
+        .text-tool-popup {
+            position: fixed;
+            z-index: 1002;
+            display: none;
+            min-width: 240px;
+            border-radius: 8px;
+            background: rgba(49, 50, 68, 0.97);
+            border: 1px solid #6c7086;
+            color: #cdd6f4;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+            font-size: 12px;
+            overflow: hidden;
+        }
+
+        .text-tool-popup.visible {
+            display: grid;
+        }
+
+        .text-tool-title {
+            background: #45475a;
+            border-bottom: 1px solid #6c7086;
+            cursor: move;
+            font-weight: bold;
+            padding: 7px 9px;
+            user-select: none;
+        }
+
+        .text-tool-body {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .text-tool-popup label {
+            display: grid;
+            gap: 4px;
+            font-weight: bold;
+        }
+
+        .text-tool-popup input,
+        .text-tool-popup select {
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            border: 1px solid #6c7086;
+            padding: 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .text-tool-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .text-tool-actions button {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -479,6 +621,7 @@
                 <option value="line">Line</option>
                 <option value="bucket">Bucket</option>
                 <option value="picker">Color Selector</option>
+                <option value="text">Text</option>
             </select>
             
             <label>Size:</label>
@@ -488,8 +631,8 @@
             <select id="supportBlockSelect" data-tooltip="Support blocks are generated only when a placed block requires support"></select>
         </div>
 
-        <button id="undoBtn" disabled>Undo</button>
-        <button id="redoBtn" disabled>Redo</button>
+        <button id="undoBtn" data-tooltip="Press Ctrl+Z to undo" disabled>Undo</button>
+        <button id="redoBtn" data-tooltip="Press Ctrl+Y to redo" disabled>Redo</button>
         <button id="saveIndivBtn">Download Individual Files</button>
         <button id="saveZipBtn">Download as ZIP Folder</button>
         <button id="saveSingleBtn">Download as 1 NBT</button>
@@ -504,6 +647,22 @@
                     <div class="cursor-selection-frame" id="cursorSelectionFrame"></div>
                 </div>
                 <div class="tool-scroll-tooltip" id="toolScrollTooltip" role="status"></div>
+                <div class="text-tool-popup" id="textToolPopup">
+                    <div class="text-tool-title" id="textToolDragHandle">Text Tool</div>
+                    <div class="text-tool-body">
+                        <label>Text <input type="text" id="textToolInput" maxlength="64" placeholder="Type text"></label>
+                        <label>Size
+                            <select id="textToolSize">
+                                <option value="7" selected>7 px</option>
+                                <option value="5">5 px</option>
+                            </select>
+                        </label>
+                        <div class="text-tool-actions">
+                            <button id="textToolPlaceBtn" type="button">Place</button>
+                            <button id="textToolCancelBtn" type="button">Cancel</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="hotbar-area" aria-label="Color hotbar">
                 <div class="hotbar-strip" id="hotbarSlots"></div>
@@ -1218,12 +1377,127 @@
         ]);
 
         const SUPPORT_BLOCK_OPTIONS = [
+            makeBlock("None", "__none__"),
             makeBlock("Cobblestone", "minecraft:cobblestone"),
             makeBlock("Netherrack", "minecraft:netherrack"),
             makeBlock("Stone", "minecraft:stone"),
             makeBlock("Dirt", "minecraft:dirt"),
             makeBlock("Deepslate", "minecraft:deepslate")
         ];
+        const NO_SUPPORT_BLOCK_KEY = SUPPORT_BLOCK_OPTIONS[0].key;
+        const DEFAULT_SUPPORT_BLOCK = SUPPORT_BLOCK_OPTIONS[1];
+
+        const TEXT_GLYPHS_7 = {
+            " ": ["...", "...", "...", "...", "...", "...", "..."],
+            "!": [".X.", ".X.", ".X.", ".X.", ".X.", "...", ".X."],
+            "\"": ["X.X", "X.X", "...", "...", "...", "...", "..."],
+            "'": [".X.", ".X.", "...", "...", "...", "...", "..."],
+            "(": ["..X", ".X.", "X..", "X..", "X..", ".X.", "..X"],
+            ")": ["X..", ".X.", "..X", "..X", "..X", ".X.", "X.."],
+            "+": ["...", ".X.", ".X.", "XXX", ".X.", ".X.", "..."],
+            ",": ["...", "...", "...", "...", "...", ".X.", "X.."],
+            "-": ["...", "...", "...", "XXX", "...", "...", "..."],
+            ".": ["...", "...", "...", "...", "...", "...", ".X."],
+            "/": ["....X", "...X.", "..X..", ".X...", "X....", ".....", "....."],
+            "0": [".XXX.", "X...X", "X..XX", "X.X.X", "XX..X", "X...X", ".XXX."],
+            "1": ["..X..", ".XX..", "..X..", "..X..", "..X..", "..X..", ".XXX."],
+            "2": [".XXX.", "X...X", "....X", "...X.", "..X..", ".X...", "XXXXX"],
+            "3": ["XXXX.", "....X", "....X", ".XXX.", "....X", "....X", "XXXX."],
+            "4": ["...X.", "..XX.", ".X.X.", "X..X.", "XXXXX", "...X.", "...X."],
+            "5": ["XXXXX", "X....", "X....", "XXXX.", "....X", "X...X", ".XXX."],
+            "6": [".XXX.", "X....", "X....", "XXXX.", "X...X", "X...X", ".XXX."],
+            "7": ["XXXXX", "....X", "...X.", "..X..", ".X...", ".X...", ".X..."],
+            "8": [".XXX.", "X...X", "X...X", ".XXX.", "X...X", "X...X", ".XXX."],
+            "9": [".XXX.", "X...X", "X...X", ".XXXX", "....X", "....X", ".XXX."],
+            ":": ["...", ".X.", "...", "...", "...", ".X.", "..."],
+            ";": ["...", ".X.", "...", "...", "...", ".X.", "X.."],
+            "?": [".XXX.", "X...X", "....X", "...X.", "..X..", ".....", "..X.."],
+            "A": [".XXX.", "X...X", "X...X", "XXXXX", "X...X", "X...X", "X...X"],
+            "B": ["XXXX.", "X...X", "X...X", "XXXX.", "X...X", "X...X", "XXXX."],
+            "C": [".XXX.", "X...X", "X....", "X....", "X....", "X...X", ".XXX."],
+            "D": ["XXXX.", "X...X", "X...X", "X...X", "X...X", "X...X", "XXXX."],
+            "E": ["XXXXX", "X....", "X....", "XXXX.", "X....", "X....", "XXXXX"],
+            "F": ["XXXXX", "X....", "X....", "XXXX.", "X....", "X....", "X...."],
+            "G": [".XXX.", "X...X", "X....", "X.XXX", "X...X", "X...X", ".XXX."],
+            "H": ["X...X", "X...X", "X...X", "XXXXX", "X...X", "X...X", "X...X"],
+            "I": ["XXX", ".X.", ".X.", ".X.", ".X.", ".X.", "XXX"],
+            "J": ["..XXX", "...X.", "...X.", "...X.", "...X.", "X..X.", ".XX.."],
+            "K": ["X...X", "X..X.", "X.X..", "XX...", "X.X..", "X..X.", "X...X"],
+            "L": ["X....", "X....", "X....", "X....", "X....", "X....", "XXXXX"],
+            "M": ["X...X", "XX.XX", "X.X.X", "X...X", "X...X", "X...X", "X...X"],
+            "N": ["X...X", "XX..X", "XX..X", "X.X.X", "X..XX", "X..XX", "X...X"],
+            "O": [".XXX.", "X...X", "X...X", "X...X", "X...X", "X...X", ".XXX."],
+            "P": ["XXXX.", "X...X", "X...X", "XXXX.", "X....", "X....", "X...."],
+            "Q": [".XXX.", "X...X", "X...X", "X...X", "X.X.X", "X..X.", ".XX.X"],
+            "R": ["XXXX.", "X...X", "X...X", "XXXX.", "X.X..", "X..X.", "X...X"],
+            "S": [".XXXX", "X....", "X....", ".XXX.", "....X", "....X", "XXXX."],
+            "T": ["XXXXX", "..X..", "..X..", "..X..", "..X..", "..X..", "..X.."],
+            "U": ["X...X", "X...X", "X...X", "X...X", "X...X", "X...X", ".XXX."],
+            "V": ["X...X", "X...X", "X...X", "X...X", "X...X", ".X.X.", "..X.."],
+            "W": ["X...X", "X...X", "X...X", "X.X.X", "X.X.X", "XX.XX", "X...X"],
+            "X": ["X...X", "X...X", ".X.X.", "..X..", ".X.X.", "X...X", "X...X"],
+            "Y": ["X...X", "X...X", ".X.X.", "..X..", "..X..", "..X..", "..X.."],
+            "Z": ["XXXXX", "....X", "...X.", "..X..", ".X...", "X....", "XXXXX"],
+            "[": ["XXX", "X..", "X..", "X..", "X..", "X..", "XXX"],
+            "]": ["XXX", "..X", "..X", "..X", "..X", "..X", "XXX"],
+            "_": ["...", "...", "...", "...", "...", "...", "XXX"]
+        };
+
+        const TEXT_GLYPHS_5 = {
+            " ": ["..", "..", "..", "..", ".."],
+            "!": [".X.", ".X.", ".X.", "...", ".X."],
+            "\"": ["X.X", "X.X", "...", "...", "..."],
+            "'": [".X.", ".X.", "...", "...", "..."],
+            "(": ["..X", ".X.", "X..", ".X.", "..X"],
+            ")": ["X..", ".X.", "..X", ".X.", "X.."],
+            "+": ["...", ".X.", "XXX", ".X.", "..."],
+            ",": ["...", "...", "...", ".X.", "X.."],
+            "-": ["...", "...", "XXX", "...", "..."],
+            ".": ["...", "...", "...", "...", ".X."],
+            "/": ["..X", "..X", ".X.", "X..", "X.."],
+            "0": ["XXX", "X.X", "X.X", "X.X", "XXX"],
+            "1": [".X.", "XX.", ".X.", ".X.", "XXX"],
+            "2": ["XXX", "..X", "XXX", "X..", "XXX"],
+            "3": ["XXX", "..X", "XXX", "..X", "XXX"],
+            "4": ["X.X", "X.X", "XXX", "..X", "..X"],
+            "5": ["XXX", "X..", "XXX", "..X", "XXX"],
+            "6": ["XXX", "X..", "XXX", "X.X", "XXX"],
+            "7": ["XXX", "..X", ".X.", ".X.", ".X."],
+            "8": ["XXX", "X.X", "XXX", "X.X", "XXX"],
+            "9": ["XXX", "X.X", "XXX", "..X", "XXX"],
+            ":": ["...", ".X.", "...", ".X.", "..."],
+            ";": ["...", ".X.", "...", ".X.", "X.."],
+            "?": ["XXX", "..X", ".X.", "...", ".X."],
+            "A": ["XXX", "X.X", "XXX", "X.X", "X.X"],
+            "B": ["XX.", "X.X", "XX.", "X.X", "XX."],
+            "C": ["XXX", "X..", "X..", "X..", "XXX"],
+            "D": ["XX.", "X.X", "X.X", "X.X", "XX."],
+            "E": ["XXX", "X..", "XX.", "X..", "XXX"],
+            "F": ["XXX", "X..", "XX.", "X..", "X.."],
+            "G": ["XXX", "X..", "X.X", "X.X", "XXX"],
+            "H": ["X.X", "X.X", "XXX", "X.X", "X.X"],
+            "I": ["XXX", ".X.", ".X.", ".X.", "XXX"],
+            "J": ["..X", "..X", "..X", "X.X", "XXX"],
+            "K": ["X.X", "X.X", "XX.", "X.X", "X.X"],
+            "L": ["X..", "X..", "X..", "X..", "XXX"],
+            "M": ["X.X", "XXX", "XXX", "X.X", "X.X"],
+            "N": ["X.X", "XXX", "XXX", "XXX", "X.X"],
+            "O": ["XXX", "X.X", "X.X", "X.X", "XXX"],
+            "P": ["XXX", "X.X", "XXX", "X..", "X.."],
+            "Q": ["XXX", "X.X", "X.X", "XXX", "..X"],
+            "R": ["XXX", "X.X", "XXX", "XX.", "X.X"],
+            "S": ["XXX", "X..", "XXX", "..X", "XXX"],
+            "T": ["XXX", ".X.", ".X.", ".X.", ".X."],
+            "U": ["X.X", "X.X", "X.X", "X.X", "XXX"],
+            "V": ["X.X", "X.X", "X.X", "X.X", ".X."],
+            "W": ["X.X", "X.X", "XXX", "XXX", "X.X"],
+            "X": ["X.X", "X.X", ".X.", "X.X", "X.X"],
+            "Y": ["X.X", "X.X", ".X.", ".X.", ".X."],
+            "Z": ["XXX", "..X", ".X.", "X..", "XXX"],
+            "[": ["XX.", "X..", "X..", "X..", "XX."],
+            "]": [".XX", "..X", "..X", "..X", ".XX"],
+            "_": ["...", "...", "...", "...", "XXX"]
+        };
 
         const COLORS_BY_ID = new Map();
         const COLOR_BY_MAPART_ID = new Map();
@@ -1250,7 +1524,7 @@
         let originalFileName = "mapartcraft_export";
         
         let selectedColor = COLORS_BY_ID.get("white") || MAP_COLOR_DATABASE[0];
-        let selectedSupportBlock = SUPPORT_BLOCK_OPTIONS[0];
+        let selectedSupportBlock = DEFAULT_SUPPORT_BLOCK;
         let paletteMode = "fullblock";
         const hotbarSlots = new Array(9).fill(null);
         let activeHotbarSlot = null;
@@ -1261,6 +1535,14 @@
         let lastClientX = window.innerWidth / 2;
         let lastClientY = window.innerHeight / 2;
         let fullscreenRestoreView = null;
+        let fullscreenHudOverlay = null;
+        let fullscreenHudMoveRecords = [];
+        let fullscreenHudVisible = true;
+        let activeHudDrag = null;
+        let textToolAnchor = null;
+        let textToolPopupPosition = null;
+        let textToolPopupWasDragged = false;
+        let activeTextToolPopupDrag = null;
         
         // Input States
         let isDrawing = false;
@@ -1294,6 +1576,9 @@
         const cursorSelectionFrame = document.getElementById('cursorSelectionFrame');
         const toolSelect = document.getElementById('toolSelect');
         const canvasContainer = document.getElementById('canvasContainer');
+        const toolGroup = document.querySelector('.tool-group');
+        const hotbarArea = document.querySelector('.hotbar-area');
+        const palettePanel = document.querySelector('.palette-panel');
         const paletteImportStatus = document.getElementById('paletteImportStatus');
         const supportBlockSelect = document.getElementById('supportBlockSelect');
         const hotbarSlotsElement = document.getElementById('hotbarSlots');
@@ -1302,14 +1587,30 @@
         const instantTooltip = document.getElementById('instantTooltip');
         const toolScrollTooltip = document.getElementById('toolScrollTooltip');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+        const textToolPopup = document.getElementById('textToolPopup');
+        const textToolDragHandle = document.getElementById('textToolDragHandle');
+        const textToolInput = document.getElementById('textToolInput');
+        const textToolSize = document.getElementById('textToolSize');
+        const textToolPlaceBtn = document.getElementById('textToolPlaceBtn');
+        const textToolCancelBtn = document.getElementById('textToolCancelBtn');
 
         function setActiveTool(toolValue, rememberPrevious = true) {
             if (rememberPrevious && toolValue === 'picker' && activeTool !== 'picker') {
                 previousToolBeforePicker = activeTool;
             }
+            if (toolValue !== 'text') {
+                hideTextToolPopup(false);
+            }
             activeTool = toolValue;
             toolSelect.value = toolValue;
-            updateCursorPreview(lastMouseX, lastMouseZ);
+            if (toolValue === 'text') {
+                const anchor = textToolAnchor || defaultTextToolAnchor();
+                showTextToolPopup(anchor.x, anchor.z);
+            } else {
+                updateCursorPreview(lastMouseX, lastMouseZ);
+            }
         }
 
         function restoreToolAfterPicker() {
@@ -1326,6 +1627,27 @@
         document.getElementById('brushSize').addEventListener('input', () => {
             updateCursorPreview(lastMouseX, lastMouseZ);
         });
+
+        textToolInput.addEventListener('input', refreshTextToolPreview);
+        textToolSize.addEventListener('change', refreshTextToolPreview);
+        textToolPlaceBtn.addEventListener('click', placeTextToolText);
+        textToolCancelBtn.addEventListener('click', () => hideTextToolPopup());
+        textToolDragHandle.addEventListener('pointerdown', startTextToolPopupDrag);
+        textToolPopup.addEventListener('keydown', (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                placeTextToolText();
+            } else if (event.key === "Escape") {
+                event.preventDefault();
+                hideTextToolPopup();
+            }
+        });
+        ["mousedown", "mouseup", "click", "dblclick", "contextmenu", "pointerdown", "pointerup", "wheel"].forEach(type => {
+            textToolPopup.addEventListener(type, event => event.stopPropagation(), { passive: type !== "wheel" });
+        });
+        document.addEventListener('pointermove', moveTextToolPopupDrag, true);
+        document.addEventListener('pointerup', finishTextToolPopupDrag, true);
+        document.addEventListener('pointercancel', finishTextToolPopupDrag, true);
 
         function moveInstantTooltip(event) {
             if (!instantTooltip || !instantTooltip.classList.contains('visible')) return;
@@ -1423,6 +1745,31 @@
             showToolScrollTooltip(nextOption.textContent, event);
         }
 
+        function handleUndoRedoHotkey(event) {
+            if (!event.ctrlKey || event.altKey || event.metaKey || shouldIgnoreHotbarKey(event.target)) return false;
+
+            const key = event.key.toLowerCase();
+            if (key === "z") {
+                event.preventDefault();
+                undoLastChange();
+                return true;
+            }
+
+            if (key === "y") {
+                event.preventDefault();
+                redoLastChange();
+                return true;
+            }
+
+            return false;
+        }
+
+        function toggleFullscreenHudVisibility() {
+            if (!fullscreenHudOverlay) return;
+            fullscreenHudVisible = !fullscreenHudVisible;
+            fullscreenHudOverlay.classList.toggle("hidden", !fullscreenHudVisible);
+        }
+
         document.addEventListener('mouseover', (event) => {
             const target = event.target.closest && event.target.closest('[data-tooltip]');
             if (target) showInstantTooltip(target, event);
@@ -1441,6 +1788,14 @@
         });
 
         document.addEventListener('keydown', (event) => {
+            if (handleUndoRedoHotkey(event)) return;
+
+            if (isCanvasFullscreen() && event.key && event.key.toLowerCase() === "h" && !shouldIgnoreHotbarKey(event.target)) {
+                event.preventDefault();
+                toggleFullscreenHudVisibility();
+                return;
+            }
+
             if (toolScrollKeyMatches(event) && !shouldIgnoreHotbarKey(event.target)) {
                 isToolScrollKeyHeld = true;
                 event.preventDefault();
@@ -1499,6 +1854,10 @@
 
         function usesBlockPaletteMode() {
             return paletteMode === "fullblock" || paletteMode === "staircased";
+        }
+
+        function supportGenerationEnabled() {
+            return !!(selectedSupportBlock && selectedSupportBlock.key !== NO_SUPPORT_BLOCK_KEY);
         }
 
         function rgbFromHex(hex) {
@@ -1780,7 +2139,7 @@
         }
 
         supportBlockSelect.addEventListener('change', () => {
-            selectedSupportBlock = SUPPORT_BLOCK_OPTIONS.find(block => block.key === supportBlockSelect.value) || SUPPORT_BLOCK_OPTIONS[0];
+            selectedSupportBlock = SUPPORT_BLOCK_OPTIONS.find(block => block.key === supportBlockSelect.value) || DEFAULT_SUPPORT_BLOCK;
             if (usesBlockPaletteMode()) rebuildAllSupports();
         });
 
@@ -2018,7 +2377,7 @@
                     const entry = lf.structurePalette[support.state.value];
                     if (!entry) continue;
                     const key = paletteEntryKey(entry);
-                    if (SUPPORT_BLOCK_OPTIONS.some(option => option.key === key)) {
+                    if (SUPPORT_BLOCK_OPTIONS.some(option => option.key !== NO_SUPPORT_BLOCK_KEY && option.key === key)) {
                         counts.set(key, (counts.get(key) || 0) + 1);
                     }
                 }
@@ -2033,7 +2392,7 @@
                 }
             });
 
-            selectedSupportBlock = SUPPORT_BLOCK_OPTIONS.find(option => option.key === bestKey) || SUPPORT_BLOCK_OPTIONS[0];
+            selectedSupportBlock = SUPPORT_BLOCK_OPTIONS.find(option => option.key === bestKey) || DEFAULT_SUPPORT_BLOCK;
             renderSupportSelect();
         }
 
@@ -2443,6 +2802,7 @@
         }
 
         function createSupportBlockAt(lf, pos) {
+            if (!supportGenerationEnabled()) return;
             if (pos.y < 0 || blockAt(lf, pos.x, pos.y, pos.z)) return;
             const state = ensurePaletteState(lf, selectedSupportBlock);
             const supportBlock = {
@@ -2482,17 +2842,19 @@
                 }
 
                 const desired = new Map();
-                affectedCells.forEach(cell => {
-                    const positions = supportPositionsForCell(cell);
-                    if (cellNeedsSupport(cell)) {
-                        positions.forEach(pos => desired.set(coordKey(pos.x, pos.y, pos.z), pos));
-                    }
-                });
+                if (supportGenerationEnabled()) {
+                    affectedCells.forEach(cell => {
+                        const positions = supportPositionsForCell(cell);
+                        if (cellNeedsSupport(cell)) {
+                            positions.forEach(pos => desired.set(coordKey(pos.x, pos.y, pos.z), pos));
+                        }
+                    });
+                }
 
                 expired.forEach((pos, key) => {
                     if (desired.has(key)) return;
                     const existing = blockAt(lf, pos.x, pos.y, pos.z);
-                    if (existing && !isEditableArtworkBlock(lf, existing) && (lf.supportCreatedKeys.has(key) || isSupportMaterialBlock(lf, existing))) {
+                    if (existing && !isEditableArtworkBlock(lf, existing) && lf.supportCreatedKeys.has(key)) {
                         removeBlockFromFile(lf, existing);
                         lf.supportCreatedKeys.delete(key);
                     }
@@ -2516,6 +2878,7 @@
                     lf.supportCreatedKeys.delete(key);
                 }
             }
+            if (!supportGenerationEnabled()) return;
             syncSupportsForCells(gridMap.filter(Boolean));
         }
 
@@ -2627,6 +2990,264 @@
         function cellAtGlobal(x, z) {
             if (x < 0 || x >= mapWidth || z < 0 || z >= mapHeight) return null;
             return gridMap[z * mapWidth + x] || null;
+        }
+
+        function currentTextToolSize() {
+            return textToolSize.value === "5" ? 5 : 7;
+        }
+
+        function glyphForTextChar(char, size) {
+            const glyphs = size === 5 ? TEXT_GLYPHS_5 : TEXT_GLYPHS_7;
+            return glyphs[char.toUpperCase()] || glyphs["?"];
+        }
+
+        function textPixelsFor(text, size) {
+            const pixels = [];
+            const lines = String(text || "").split(/\r?\n/);
+            const lineHeight = size + 1;
+
+            lines.forEach((line, lineIndex) => {
+                let cursorX = 0;
+                for (const char of line) {
+                    const glyph = glyphForTextChar(char, size);
+                    const glyphWidth = Math.max(...glyph.map(row => row.length));
+
+                    glyph.forEach((row, rowIndex) => {
+                        for (let col = 0; col < row.length; col++) {
+                            const marker = row[col];
+                            if (marker !== "." && marker !== " ") {
+                                pixels.push({
+                                    x: cursorX + col,
+                                    z: lineIndex * lineHeight + rowIndex
+                                });
+                            }
+                        }
+                    });
+
+                    cursorX += glyphWidth + 1;
+                }
+            });
+
+            return pixels;
+        }
+
+        function previewTextAt(anchorX, anchorZ, text, size) {
+            for (const pixel of textPixelsFor(text, size)) {
+                const x = anchorX + pixel.x;
+                const z = anchorZ + pixel.z;
+                if (x < 0 || x >= mapWidth || z < 0 || z >= mapHeight) continue;
+
+                previewCtx.fillStyle = previewFillStyleAt(x, z);
+                previewCtx.fillRect(x, z, 1, 1);
+            }
+        }
+
+        function applyTextAt(anchorX, anchorZ, text, size, updateCanvasDirectly) {
+            const pixels = textPixelsFor(text, size);
+            if (pixels.length === 0) return false;
+
+            let changed = false;
+            const changedCells = [];
+            const targetBlock = selectedBlockForColor(selectedColor);
+
+            for (const pixel of pixels) {
+                const x = anchorX + pixel.x;
+                const z = anchorZ + pixel.z;
+                const cell = cellAtGlobal(x, z);
+                if (!cell) continue;
+
+                const targetPaletteIndex = ensurePaletteState(cell.file, targetBlock);
+                if (cell.blockRef.state.value !== targetPaletteIndex) {
+                    const supportChange = supportChangeRecordForCell(cell);
+                    cell.blockRef.state.value = targetPaletteIndex;
+                    cell.colorId = selectedColor.id;
+                    cell.blockKey = targetBlock.key;
+                    changedCells.push(supportChange);
+                    changed = true;
+
+                    if (updateCanvasDirectly) {
+                        ctx.fillStyle = rgbToCss(rgbForCellColor(cell, selectedColor));
+                        ctx.fillRect(x, z, 1, 1);
+                    }
+                }
+            }
+
+            if (changedCells.length > 0) syncSupportsForCells(changedCells);
+            return changed;
+        }
+
+        function isTextToolPopupOpen() {
+            return !!(textToolPopup && textToolPopup.classList.contains("visible"));
+        }
+
+        function validTextAnchor(x, z) {
+            return Number.isFinite(x) && Number.isFinite(z) && x >= 0 && x < mapWidth && z >= 0 && z < mapHeight;
+        }
+
+        function defaultTextToolAnchor() {
+            if (validTextAnchor(lastMouseX, lastMouseZ)) {
+                return { x: lastMouseX, z: lastMouseZ };
+            }
+
+            if (mapWidth > 0 && mapHeight > 0) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const containerRect = canvasContainer.getBoundingClientRect();
+                const centerClientX = Math.max(canvasRect.left, Math.min(canvasRect.right - 1, containerRect.left + containerRect.width / 2));
+                const centerClientY = Math.max(canvasRect.top, Math.min(canvasRect.bottom - 1, containerRect.top + containerRect.height / 2));
+                const scaleX = mapWidth / canvasRect.width;
+                const scaleY = mapHeight / canvasRect.height;
+                return {
+                    x: Math.max(0, Math.min(mapWidth - 1, Math.floor((centerClientX - canvasRect.left) * scaleX))),
+                    z: Math.max(0, Math.min(mapHeight - 1, Math.floor((centerClientY - canvasRect.top) * scaleY)))
+                };
+            }
+
+            return { x: 0, z: 0 };
+        }
+
+        function clampTextToolPopupPosition(left, top) {
+            if (!textToolPopup) return { left, top };
+
+            const padding = 12;
+            const rect = textToolPopup.getBoundingClientRect();
+            const width = rect.width || textToolPopup.offsetWidth || 240;
+            const height = rect.height || textToolPopup.offsetHeight || 160;
+            const maxLeft = Math.max(padding, window.innerWidth - width - padding);
+            const maxTop = Math.max(padding, window.innerHeight - height - padding);
+
+            return {
+                left: Math.max(padding, Math.min(maxLeft, left)),
+                top: Math.max(padding, Math.min(maxTop, top))
+            };
+        }
+
+        function defaultTextToolPopupPosition() {
+            const padding = 12;
+            const gap = 12;
+            const canvasRect = canvasContainer.getBoundingClientRect();
+            const popupRect = textToolPopup.getBoundingClientRect();
+            const popupWidth = popupRect.width || textToolPopup.offsetWidth || 240;
+            let left = canvasRect.left - popupWidth - gap;
+            if (left < padding) left = canvasRect.left + padding;
+            const top = canvasRect.top + padding;
+            return clampTextToolPopupPosition(left, top);
+        }
+
+        function positionTextToolPopup() {
+            if (!textToolPopup) return;
+
+            if (!textToolPopupWasDragged || !textToolPopupPosition) {
+                textToolPopupPosition = defaultTextToolPopupPosition();
+            } else {
+                textToolPopupPosition = clampTextToolPopupPosition(textToolPopupPosition.left, textToolPopupPosition.top);
+            }
+
+            textToolPopup.style.left = `${textToolPopupPosition.left}px`;
+            textToolPopup.style.top = `${textToolPopupPosition.top}px`;
+        }
+
+        function startTextToolPopupDrag(event) {
+            if (event.button !== 0) return;
+            const rect = textToolPopup.getBoundingClientRect();
+            activeTextToolPopupDrag = {
+                pointerId: event.pointerId,
+                offsetX: event.clientX - rect.left,
+                offsetY: event.clientY - rect.top
+            };
+            try {
+                event.currentTarget.setPointerCapture(event.pointerId);
+            } catch (error) {
+                // Pointer capture is best-effort; document capture handles release.
+            }
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function moveTextToolPopupDrag(event) {
+            if (!activeTextToolPopupDrag) return;
+            textToolPopupWasDragged = true;
+            textToolPopupPosition = clampTextToolPopupPosition(
+                event.clientX - activeTextToolPopupDrag.offsetX,
+                event.clientY - activeTextToolPopupDrag.offsetY
+            );
+            positionTextToolPopup();
+            event.preventDefault();
+        }
+
+        function finishTextToolPopupDrag(event) {
+            if (!activeTextToolPopupDrag) return;
+            if (textToolDragHandle && activeTextToolPopupDrag.pointerId !== undefined) {
+                try {
+                    textToolDragHandle.releasePointerCapture(activeTextToolPopupDrag.pointerId);
+                } catch (error) {
+                    // The browser may already have released it.
+                }
+            }
+            activeTextToolPopupDrag = null;
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }
+
+        function refreshTextToolPreview() {
+            if (!isTextToolPopupOpen() || !textToolAnchor) {
+                previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+                hideCursorSelectionFrame();
+                return;
+            }
+
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+            showCursorSelectionFrame(textToolAnchor.x, textToolAnchor.z);
+
+            const text = textToolInput.value;
+            if (text) {
+                previewTextAt(textToolAnchor.x, textToolAnchor.z, text, currentTextToolSize());
+            }
+        }
+
+        function showTextToolPopup(x, z) {
+            textToolAnchor = { x, z };
+            textToolPopup.classList.add("visible");
+            positionTextToolPopup();
+            refreshTextToolPreview();
+            textToolInput.focus();
+            textToolInput.select();
+        }
+
+        function hideTextToolPopup(refreshPreview = true) {
+            if (!textToolPopup) return;
+            textToolPopup.classList.remove("visible");
+            textToolAnchor = null;
+            finishTextToolPopupDrag();
+            if (refreshPreview) updateCursorPreview(lastMouseX, lastMouseZ);
+        }
+
+        function placeTextToolText() {
+            if (!textToolAnchor) return;
+
+            const text = textToolInput.value;
+            if (!text) {
+                textToolInput.focus();
+                return;
+            }
+
+            saveCurrentStateToUndo();
+            if (!applyTextAt(textToolAnchor.x, textToolAnchor.z, text, currentTextToolSize(), true)) {
+                undoStack.pop();
+                updateButtons();
+            }
+
+            refreshTextToolPreview();
+            textToolInput.focus();
+        }
+
+        function keepTextPreviewIfActive() {
+            if (activeTool === "text" && isTextToolPopupOpen() && textToolAnchor) {
+                refreshTextToolPreview();
+                return true;
+            }
+            return false;
         }
 
         function selectColorFromCell(x, z) {
@@ -2797,12 +3418,22 @@
             previewCtx.clearRect(0, 0, mapWidth, mapHeight);
             
             if (isPanning) {
-                hideCursorSelectionFrame();
+                if (!keepTextPreviewIfActive()) hideCursorSelectionFrame();
                 return;
             }
 
             const size = parseInt(document.getElementById('brushSize').value) || 1;
             const offsetStart = Math.floor(size / 2);
+
+            if (activeTool === 'text') {
+                if (keepTextPreviewIfActive()) return;
+                if (!validTextAnchor(x, z)) {
+                    hideCursorSelectionFrame();
+                    return;
+                }
+                showCursorSelectionFrame(x, z);
+                return;
+            }
 
             if (x < 0 || x >= mapWidth || z < 0 || z >= mapHeight) {
                 hideCursorSelectionFrame();
@@ -2853,7 +3484,7 @@
             renderFullCanvas();
         }
 
-        document.getElementById('undoBtn').addEventListener('click', () => {
+        function undoLastChange() {
             if (undoStack.length === 0) return;
             const currentState = new Int32Array(gridMap.length);
             for(let i=0; i<gridMap.length; i++) currentState[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
@@ -2862,9 +3493,9 @@
             const previousState = undoStack.pop();
             applySnapshot(previousState);
             updateButtons();
-        });
+        }
 
-        document.getElementById('redoBtn').addEventListener('click', () => {
+        function redoLastChange() {
             if (redoStack.length === 0) return;
             const currentState = new Int32Array(gridMap.length);
             for(let i=0; i<gridMap.length; i++) currentState[i] = gridMap[i] ? gridMap[i].blockRef.state.value : -1;
@@ -2873,11 +3504,14 @@
             const nextState = redoStack.pop();
             applySnapshot(nextState);
             updateButtons();
-        });
+        }
+
+        undoBtn.addEventListener('click', undoLastChange);
+        redoBtn.addEventListener('click', redoLastChange);
 
         function updateButtons() {
-            document.getElementById('undoBtn').disabled = undoStack.length === 0;
-            document.getElementById('redoBtn').disabled = redoStack.length === 0;
+            undoBtn.disabled = undoStack.length === 0;
+            redoBtn.disabled = redoStack.length === 0;
         }
 
         function getMouseCoords(e) {
@@ -2893,6 +3527,7 @@
         canvasContainer.addEventListener('contextmenu', e => e.preventDefault());
 
         canvasContainer.addEventListener('mouseleave', () => {
+            if (keepTextPreviewIfActive()) return;
             if (previewCtx && mapWidth > 0) previewCtx.clearRect(0, 0, mapWidth, mapHeight);
             hideCursorSelectionFrame();
         });
@@ -2902,6 +3537,13 @@
             
             if (e.button === 0) { 
                 const {x, z} = getMouseCoords(e);
+
+                if (activeTool === 'text') {
+                    lastMouseX = x;
+                    lastMouseZ = z;
+                    showTextToolPopup(x, z);
+                    return;
+                }
 
                 if (activeTool === 'picker') {
                     const picked = selectColorFromCell(x, z);
@@ -2952,6 +3594,7 @@
         });
         
         window.addEventListener('mousemove', (e) => {
+            if (activeHudDrag || targetIsInFullscreenHud(e.target)) return;
             const {x, z} = getMouseCoords(e);
 
             if (isDrawing) {
@@ -3035,6 +3678,148 @@
             });
         }
 
+        function targetIsInFullscreenHud(target) {
+            return !!(fullscreenHudOverlay && target && fullscreenHudOverlay.contains(target));
+        }
+
+        function clampHudPanel(panel, left, top) {
+            const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
+            const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+            panel.style.left = `${Math.max(0, Math.min(maxLeft, left))}px`;
+            panel.style.top = `${Math.max(0, Math.min(maxTop, top))}px`;
+        }
+
+        function startHudPanelDrag(event) {
+            if (event.button !== 0) return;
+            try {
+                event.currentTarget.setPointerCapture(event.pointerId);
+            } catch (error) {
+                // Pointer capture is best-effort; capture-phase release still handles the drag.
+            }
+            const panel = event.currentTarget.parentElement;
+            const rect = panel.getBoundingClientRect();
+            activeHudDrag = {
+                panel,
+                pointerId: event.pointerId,
+                pointerTarget: event.currentTarget,
+                offsetX: event.clientX - rect.left,
+                offsetY: event.clientY - rect.top
+            };
+            panel.classList.add("dragging");
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function finishHudPanelDrag(event) {
+            if (!activeHudDrag) return;
+            activeHudDrag.panel.classList.remove("dragging");
+            if (activeHudDrag.pointerTarget && activeHudDrag.pointerId !== undefined) {
+                try {
+                    activeHudDrag.pointerTarget.releasePointerCapture(activeHudDrag.pointerId);
+                } catch (error) {
+                    // The pointer may already be released by the browser.
+                }
+            }
+            activeHudDrag = null;
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }
+
+        function createFullscreenHudPanel(title, className, left, top, hint = "") {
+            const panel = document.createElement("div");
+            panel.className = `fullscreen-hud-panel ${className}`;
+            panel.style.left = `${left}px`;
+            panel.style.top = `${top}px`;
+
+            const header = document.createElement("div");
+            header.className = "fullscreen-hud-title";
+            header.addEventListener("pointerdown", startHudPanelDrag);
+
+            const titleText = document.createElement("span");
+            titleText.textContent = title;
+            header.appendChild(titleText);
+
+            if (hint) {
+                const hintText = document.createElement("span");
+                hintText.className = "fullscreen-hud-title-hint";
+                hintText.textContent = hint;
+                header.appendChild(hintText);
+            }
+
+            const body = document.createElement("div");
+            body.className = "fullscreen-hud-body";
+
+            panel.appendChild(header);
+            panel.appendChild(body);
+            fullscreenHudOverlay.appendChild(panel);
+            return { panel, body };
+        }
+
+        function moveElementToFullscreenPanel(element, body) {
+            if (!element || !element.parentNode) return;
+            const placeholder = document.createComment(`fullscreen-placeholder-${element.id || element.className || "node"}`);
+            element.parentNode.insertBefore(placeholder, element);
+            fullscreenHudMoveRecords.push({ element, placeholder });
+            body.appendChild(element);
+        }
+
+        function setupFullscreenHud() {
+            if (fullscreenHudOverlay) return;
+
+            fullscreenHudVisible = true;
+            fullscreenHudMoveRecords = [];
+            fullscreenHudOverlay = document.createElement("div");
+            fullscreenHudOverlay.className = "fullscreen-hud";
+            canvasContainer.appendChild(fullscreenHudOverlay);
+            moveElementToFullscreenPanel(instantTooltip, canvasContainer);
+
+            const stopHudEvent = event => {
+                if (event.target.closest(".fullscreen-hud-panel")) event.stopPropagation();
+            };
+            ["mousedown", "mouseup", "click", "dblclick", "contextmenu", "pointerdown", "pointerup"].forEach(type => {
+                fullscreenHudOverlay.addEventListener(type, stopHudEvent);
+            });
+            fullscreenHudOverlay.addEventListener("wheel", stopHudEvent, { passive: false });
+
+            const paletteWidth = Math.min(340, Math.max(220, window.innerWidth - 40));
+            const hotbarWidth = Math.min(480, Math.max(260, window.innerWidth - 40));
+            const toolsPanel = createFullscreenHudPanel("Tools", "fullscreen-hud-tools", 18, 18);
+            const historyPanel = createFullscreenHudPanel("Undo / Redo", "fullscreen-hud-history", 18, 112);
+            const paletteHudPanel = createFullscreenHudPanel("Palette", "fullscreen-hud-palette", Math.max(18, window.innerWidth - paletteWidth - 18), 18);
+            const hotbarPanel = createFullscreenHudPanel("Hotbar", "fullscreen-hud-hotbar", Math.max(18, (window.innerWidth - hotbarWidth) / 2), Math.max(18, window.innerHeight - 88), "Press H to hide/show GUI");
+
+            historyPanel.body.classList.add("fullscreen-hud-controls-body");
+
+            moveElementToFullscreenPanel(toolGroup, toolsPanel.body);
+            moveElementToFullscreenPanel(undoBtn, historyPanel.body);
+            moveElementToFullscreenPanel(redoBtn, historyPanel.body);
+            moveElementToFullscreenPanel(palettePanel, paletteHudPanel.body);
+            moveElementToFullscreenPanel(hotbarArea, hotbarPanel.body);
+
+            [toolsPanel.panel, historyPanel.panel, paletteHudPanel.panel, hotbarPanel.panel].forEach(panel => {
+                clampHudPanel(panel, parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
+            });
+        }
+
+        function restoreFullscreenHud() {
+            if (!fullscreenHudOverlay) return;
+
+            for (const record of fullscreenHudMoveRecords) {
+                if (record.placeholder.parentNode) {
+                    record.placeholder.parentNode.insertBefore(record.element, record.placeholder);
+                    record.placeholder.remove();
+                }
+            }
+
+            fullscreenHudMoveRecords = [];
+            fullscreenHudOverlay.remove();
+            fullscreenHudOverlay = null;
+            activeHudDrag = null;
+            fullscreenHudVisible = true;
+        }
+
         async function toggleCanvasFullscreen() {
             if (!document.fullscreenElement) {
                 fullscreenRestoreView = {
@@ -3059,15 +3844,30 @@
 
         fullscreenBtn.addEventListener('click', toggleCanvasFullscreen);
 
+        document.addEventListener("pointermove", (event) => {
+            if (!activeHudDrag) return;
+            clampHudPanel(
+                activeHudDrag.panel,
+                event.clientX - activeHudDrag.offsetX,
+                event.clientY - activeHudDrag.offsetY
+            );
+            event.preventDefault();
+        }, true);
+
+        document.addEventListener("pointerup", finishHudPanelDrag, true);
+        document.addEventListener("pointercancel", finishHudPanelDrag, true);
+
         document.addEventListener('fullscreenchange', () => {
             const fullscreenActive = isCanvasFullscreen();
             fullscreenBtn.textContent = fullscreenActive ? "Exit Fullscreen" : "Fullscreen";
 
             if (fullscreenActive) {
+                setupFullscreenHud();
                 requestAnimationFrame(fitCanvasToFullscreen);
                 return;
             }
 
+            restoreFullscreenHud();
             if (fullscreenRestoreView) {
                 currentScale = fullscreenRestoreView.scale;
                 applyZoom();
@@ -3081,7 +3881,15 @@
         });
 
         window.addEventListener('resize', () => {
-            if (isCanvasFullscreen()) fitCanvasToFullscreen();
+            if (isTextToolPopupOpen()) positionTextToolPopup();
+            if (isCanvasFullscreen()) {
+                fitCanvasToFullscreen();
+                if (fullscreenHudOverlay) {
+                    fullscreenHudOverlay.querySelectorAll(".fullscreen-hud-panel").forEach(panel => {
+                        clampHudPanel(panel, parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
+                    });
+                }
+            }
         });
 
         canvasContainer.addEventListener('wheel', function(e) {
@@ -3188,7 +3996,7 @@
 
             return {
                 file: lf,
-                state: ensurePaletteState(lf, SUPPORT_BLOCK_OPTIONS[0]),
+                state: ensurePaletteState(lf, DEFAULT_SUPPORT_BLOCK),
                 y: lf.layerY
             };
         }
