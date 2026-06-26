@@ -356,6 +356,14 @@
             opacity: 0.9;
         }
 
+        .fullscreen-hud-panel.minimized .fullscreen-hud-body {
+            display: none;
+        }
+
+        .fullscreen-hud-panel.minimized {
+            min-width: 160px;
+        }
+
         .fullscreen-hud-title {
             background: #45475a;
             border-bottom: 1px solid #6c7086;
@@ -376,6 +384,25 @@
             font-size: 11px;
             font-weight: normal;
             white-space: nowrap;
+        }
+
+        .fullscreen-hud-title-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .fullscreen-hud-minimize {
+            width: 22px;
+            height: 20px;
+            padding: 0;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .fullscreen-hud-body {
@@ -513,7 +540,8 @@
         }
 
         .hotbar-slot:hover,
-        .hotbar-slot.assign-target {
+        .hotbar-slot.assign-target,
+        .hotbar-slot.drop-target {
             background: #1e1e2e;
             border-color: #89b4fa;
             z-index: 1;
@@ -2370,6 +2398,10 @@
             }
         }
 
+        function dragHasPaletteItem(event) {
+            return !!(event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("application/json"));
+        }
+
         function createLayer(name, kind = "paint") {
             return {
                 id: `layer-${nextLayerId++}`,
@@ -2610,6 +2642,24 @@
             renderHotbar();
         }
 
+        function assignHotbarSlotFromItem(slotIndex, item) {
+            if (slotIndex === null || slotIndex < 0 || slotIndex >= hotbarSlots.length) return false;
+            const valid = validPaletteItem(item);
+            if (!valid) return false;
+            hotbarSlots[slotIndex] = valid;
+            activeHotbarSlot = slotIndex;
+            const info = layerCellInfo(valid);
+            if (info) {
+                selectedColor = info.color;
+                selectedBlockByColorId[info.color.id] = info.block.key;
+                if (manualShadingAvailable()) selectedTone = normalizeTone(info.tone);
+            }
+            renderPaletteRows();
+            renderHotbar();
+            updateCursorPreview(lastMouseX, lastMouseZ);
+            return true;
+        }
+
         function selectHotbarSlot(slotIndex) {
             const info = hotbarBlockForSlot(hotbarSlots[slotIndex]);
             if (!info || !paletteColorsForMode().includes(info.color)) return false;
@@ -2650,6 +2700,20 @@
                 button.onclick = () => {
                     if (slot) selectHotbarSlot(index);
                 };
+                button.addEventListener("dragover", event => {
+                    if (!dragHasPaletteItem(event)) return;
+                    event.preventDefault();
+                    button.classList.add("drop-target");
+                    event.dataTransfer.dropEffect = "copy";
+                });
+                button.addEventListener("dragleave", () => {
+                    button.classList.remove("drop-target");
+                });
+                button.addEventListener("drop", event => {
+                    event.preventDefault();
+                    button.classList.remove("drop-target");
+                    assignHotbarSlotFromItem(index, parseDraggedPaletteItem(event));
+                });
 
                 const fill = document.createElement('div');
                 fill.className = "hotbar-slot-fill";
@@ -4758,6 +4822,27 @@
                 hintText.textContent = hint;
                 header.appendChild(hintText);
             }
+
+            const controls = document.createElement("div");
+            controls.className = "fullscreen-hud-title-controls";
+            const minimizeBtn = document.createElement("button");
+            minimizeBtn.type = "button";
+            minimizeBtn.className = "fullscreen-hud-minimize";
+            minimizeBtn.textContent = "-";
+            minimizeBtn.dataset.tooltip = "Minimize window";
+            minimizeBtn.addEventListener("pointerdown", event => {
+                event.stopPropagation();
+            });
+            minimizeBtn.addEventListener("click", event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const minimized = panel.classList.toggle("minimized");
+                minimizeBtn.textContent = minimized ? "+" : "-";
+                minimizeBtn.dataset.tooltip = minimized ? "Restore window" : "Minimize window";
+                clampHudPanel(panel, parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
+            });
+            controls.appendChild(minimizeBtn);
+            header.appendChild(controls);
 
             const body = document.createElement("div");
             body.className = "fullscreen-hud-body";
