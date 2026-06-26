@@ -17,6 +17,7 @@
             --hotbar-gap: 8px;
             --workarea-height: calc(var(--editor-panel-height) - var(--hotbar-height) - var(--hotbar-gap));
             --hotbar-slot-size: clamp(24px, calc((var(--workarea-height) - 60px) / 10), 38px);
+            --left-panel-width: clamp(230px, 17vw, 320px);
             --side-panel-width: clamp(240px, 18vw, 340px);
             --palette-row-height: clamp(27px, 3.7vh, 37px);
             --palette-swatch-size: clamp(21px, 2.7vh, 27px);
@@ -104,7 +105,7 @@
 
         .editor-container {
             display: grid;
-            grid-template-columns: auto var(--side-panel-width);
+            grid-template-columns: var(--left-panel-width) auto var(--side-panel-width);
             gap: 16px;
             background-color: #313244;
             padding: 12px;
@@ -114,6 +115,178 @@
             flex: 0 1 auto;
             min-height: 0;
             max-width: calc(100vw - 24px);
+        }
+
+        .left-sidebar {
+            display: grid;
+            grid-template-rows: minmax(145px, 1fr) minmax(130px, 0.8fr) auto;
+            gap: 10px;
+            min-height: 0;
+            height: var(--editor-panel-height);
+            max-height: 700px;
+            width: var(--left-panel-width);
+        }
+
+        .sidebar-section {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            background: #1e1e2e;
+            border: 1px solid #45475a;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex: 0 0 auto;
+            padding: 7px 8px;
+            background: #45475a;
+            border-bottom: 1px solid #6c7086;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .sidebar-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sidebar-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 8px;
+            overflow: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #45475a #1e1e2e;
+        }
+
+        .tool-sidebar .sidebar-body {
+            overflow: visible;
+        }
+
+        .tool-sidebar .tool-group {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 7px;
+            width: 100%;
+            padding: 0;
+            background: transparent;
+        }
+
+        .tool-sidebar .tool-group label {
+            align-self: center;
+            font-size: 12px;
+        }
+
+        .tool-sidebar .tool-group select,
+        .tool-sidebar .tool-group input {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .quick-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+            gap: 6px;
+            align-content: start;
+            min-height: 100%;
+            border: 1px dashed transparent;
+            border-radius: 5px;
+        }
+
+        .quick-palette.drag-over {
+            border-color: #89b4fa;
+            background: rgba(137, 180, 250, 0.08);
+        }
+
+        .quick-palette-item {
+            position: relative;
+            min-width: 30px;
+            aspect-ratio: 1 / 1;
+            border: 2px solid #6c7086;
+            border-radius: 5px;
+            background: #313244;
+            cursor: pointer;
+            box-shadow: inset 0 0 0 1px #11111b;
+        }
+
+        .quick-palette-item.active {
+            border-color: #a6e3a1;
+        }
+
+        .empty-sidebar-note {
+            grid-column: 1 / -1;
+            color: #a6adc8;
+            font-size: 12px;
+            line-height: 1.25;
+            padding: 4px;
+        }
+
+        .layers-list {
+            display: grid;
+            gap: 5px;
+        }
+
+        .layer-row {
+            display: grid;
+            grid-template-columns: 22px minmax(0, 1fr) 24px 24px 24px;
+            gap: 5px;
+            align-items: center;
+            min-height: 30px;
+            padding: 4px;
+            background: #313244;
+            border: 1px solid #45475a;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .layer-row.active {
+            border-color: #a6e3a1;
+            background: #3a3d52;
+        }
+
+        .layer-index {
+            color: #a6adc8;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .layer-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .layer-btn,
+        .sidebar-icon-btn {
+            width: 24px;
+            height: 22px;
+            padding: 0;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .layer-btn.active {
+            background: #a6e3a1;
+        }
+
+        .layer-btn.delete {
+            background: #f38ba8;
+        }
+
+        .layer-btn:disabled {
+            opacity: 0.45;
         }
 
         .canvas-column {
@@ -234,6 +407,32 @@
 
         .fullscreen-hud-body .palette-header {
             margin-bottom: 6px;
+        }
+
+        .fullscreen-hud-body .sidebar-section {
+            height: min(30vh, 230px);
+            width: min(300px, calc(100vw - 40px));
+        }
+
+        .fullscreen-hud-body .tool-sidebar {
+            height: auto;
+        }
+
+        .fullscreen-hud-body .custom-palette-section {
+            height: min(30vh, 250px);
+        }
+
+        .fullscreen-hud-body .sidebar-section > .sidebar-header > span {
+            display: none;
+        }
+
+        .fullscreen-hud-body .sidebar-section > .sidebar-header {
+            justify-content: flex-end;
+            padding: 5px 8px;
+        }
+
+        .fullscreen-hud-body .tool-sidebar > .sidebar-header {
+            display: none;
         }
 
         .canvas-wrapper {
@@ -653,23 +852,6 @@
     <div class="toolbar">
         <label>NBT: <input type="file" id="fileInput" accept=".nbt" multiple></label>
         <label id="profileImportControl">Profile: <input type="file" id="paletteProfileInput" accept=".txt,.pal,.palette"></label>
-        
-        <div class="tool-group" data-tooltip="Hold T and scroll to switch tools">
-            <label>Tool:</label>
-            <select id="toolSelect">
-                <option value="brush">Brush</option>
-                <option value="line">Line</option>
-                <option value="bucket">Bucket</option>
-                <option value="picker">Color Selector</option>
-                <option value="text">Text</option>
-            </select>
-            
-            <label>Size:</label>
-            <input type="number" id="brushSize" value="1" min="1" max="20" style="width: 40px;">
-
-            <label id="supportBlockLabel" data-tooltip="Support blocks are generated only when a placed block requires support">Support:</label>
-            <select id="supportBlockSelect" data-tooltip="Support blocks are generated only when a placed block requires support"></select>
-        </div>
 
         <button id="undoBtn" data-tooltip="Press Ctrl+Z to undo" disabled>Undo</button>
         <button id="redoBtn" data-tooltip="Press Ctrl+Y to redo" disabled>Redo</button>
@@ -679,6 +861,55 @@
     </div>
 
     <div class="editor-container">
+        <div class="left-sidebar" id="leftSidebar">
+            <section class="sidebar-section custom-palette-section" id="customPaletteSection">
+                <div class="sidebar-header">
+                    <span>Custom Palette</span>
+                    <div class="sidebar-header-actions">
+                        <button id="clearQuickPaletteBtn" class="sidebar-icon-btn" type="button" data-tooltip="Clear custom palette">C</button>
+                    </div>
+                </div>
+                <div class="sidebar-body">
+                    <div class="quick-palette" id="quickPalette" data-tooltip="Drag colors or manual shades here from the main palette"></div>
+                </div>
+            </section>
+            <section class="sidebar-section layers-section" id="layersSection">
+                <div class="sidebar-header">
+                    <span>Layers</span>
+                    <div class="sidebar-header-actions">
+                        <button id="addLayerBtn" class="sidebar-icon-btn" type="button" data-tooltip="Add layer">+</button>
+                        <button id="moveLayerUpBtn" class="sidebar-icon-btn" type="button" data-tooltip="Move active layer up">^</button>
+                        <button id="moveLayerDownBtn" class="sidebar-icon-btn" type="button" data-tooltip="Move active layer down">v</button>
+                    </div>
+                </div>
+                <div class="sidebar-body">
+                    <div class="layers-list" id="layersList"></div>
+                </div>
+            </section>
+            <section class="sidebar-section tool-sidebar" id="toolSidebarSection">
+                <div class="sidebar-header">
+                    <span>Tools</span>
+                </div>
+                <div class="sidebar-body">
+                    <div class="tool-group" data-tooltip="Hold T and scroll to switch tools">
+                        <label>Tool:</label>
+                        <select id="toolSelect">
+                            <option value="brush">Brush</option>
+                            <option value="line">Line</option>
+                            <option value="bucket">Bucket</option>
+                            <option value="picker">Color Selector</option>
+                            <option value="text">Text</option>
+                        </select>
+                        
+                        <label>Size:</label>
+                        <input type="number" id="brushSize" value="1" min="1" max="20">
+
+                        <label id="supportBlockLabel" data-tooltip="Support blocks are generated only when a placed block requires support">Support:</label>
+                        <select id="supportBlockSelect" data-tooltip="Support blocks are generated only when a placed block requires support"></select>
+                    </div>
+                </div>
+            </section>
+        </div>
         <div class="canvas-column">
             <div class="canvas-container" id="canvasContainer">
                 <div class="canvas-wrapper">
@@ -1552,6 +1783,7 @@
             normal: "Normal",
             light: "Light"
         };
+        const QUICK_PALETTE_STORAGE_KEY = "nbtMapartEditor.quickPalette.v1";
 
         MAP_COLOR_DATABASE.forEach(color => {
             COLORS_BY_ID.set(color.id, color);
@@ -1577,6 +1809,10 @@
         let shadingMode = "auto";
         let selectedTone = "normal";
         let paletteDropdownsLocked = false;
+        let quickPaletteItems = [];
+        let editorLayers = [];
+        let activeLayerId = null;
+        let nextLayerId = 1;
         const hotbarSlots = new Array(9).fill(null);
         let activeHotbarSlot = null;
         let heldHotbarSlot = null;
@@ -1635,6 +1871,15 @@
         const hotbarSlotsElement = document.getElementById('hotbarSlots');
         const selectedBlockPreview = document.getElementById('selectedBlockPreview');
         const selectedBlockFill = document.getElementById('selectedBlockFill');
+        const quickPaletteElement = document.getElementById('quickPalette');
+        const clearQuickPaletteBtn = document.getElementById('clearQuickPaletteBtn');
+        const layersListElement = document.getElementById('layersList');
+        const addLayerBtn = document.getElementById('addLayerBtn');
+        const moveLayerUpBtn = document.getElementById('moveLayerUpBtn');
+        const moveLayerDownBtn = document.getElementById('moveLayerDownBtn');
+        const customPaletteSection = document.getElementById('customPaletteSection');
+        const layersSection = document.getElementById('layersSection');
+        const toolSidebarSection = document.getElementById('toolSidebarSection');
         const instantTooltip = document.getElementById('instantTooltip');
         const toolScrollTooltip = document.getElementById('toolScrollTooltip');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
@@ -1992,6 +2237,327 @@
             updateCursorPreview(lastMouseX, lastMouseZ);
         }
 
+        function layerCellKey(x, z) {
+            return `${x},${z}`;
+        }
+
+        function layerCellFromSelection(color = selectedColor, tone = selectedDisplayTone()) {
+            const block = selectedBlockForColor(color);
+            return block ? {
+                colorId: color.id,
+                blockKey: block.key,
+                tone: manualShadingActive() ? normalizeTone(tone) : null
+            } : null;
+        }
+
+        function layerCellInfo(layerCell) {
+            if (!layerCell) return null;
+            const color = COLORS_BY_ID.get(layerCell.colorId);
+            if (!color) return null;
+            const block = color.blocks.find(option => option.key === layerCell.blockKey) || selectedBlockForColor(color);
+            if (!block) return null;
+            return {
+                color,
+                block,
+                tone: layerCell.tone ? normalizeTone(layerCell.tone) : null
+            };
+        }
+
+        function colorForLayerCell(layerCell, baseCell = null) {
+            const info = layerCellInfo(layerCell);
+            if (!info) return null;
+            const tone = info.tone || (paletteMode === "staircased" && baseCell ? staircasedToneForCell(baseCell) : "normal");
+            return rgbForMapTone(info.color, tone);
+        }
+
+        function validPaletteItem(item) {
+            const info = layerCellInfo(item);
+            return info ? { colorId: info.color.id, blockKey: info.block.key, tone: item.tone ? normalizeTone(item.tone) : null } : null;
+        }
+
+        function quickPaletteItemTooltip(item) {
+            const info = layerCellInfo(item);
+            if (!info) return "Unknown color";
+            return `${info.block.displayName}${info.tone ? ` (${TONE_LABELS[info.tone]})` : ""}`;
+        }
+
+        function saveQuickPalette() {
+            try {
+                localStorage.setItem(QUICK_PALETTE_STORAGE_KEY, JSON.stringify(quickPaletteItems));
+            } catch (error) {
+                // Browser storage can fail in private modes; the palette still works for this session.
+            }
+        }
+
+        function loadQuickPalette() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(QUICK_PALETTE_STORAGE_KEY) || "[]");
+                quickPaletteItems = Array.isArray(parsed)
+                    ? parsed.map(validPaletteItem).filter(Boolean)
+                    : [];
+            } catch (error) {
+                quickPaletteItems = [];
+            }
+        }
+
+        function selectQuickPaletteItem(item) {
+            const info = layerCellInfo(item);
+            if (!info) return;
+            selectedColor = info.color;
+            selectedBlockByColorId[info.color.id] = info.block.key;
+            selectedTone = info.tone || "normal";
+            if (heldHotbarSlot !== null) {
+                assignHotbarSlot(heldHotbarSlot, info.color, selectedDisplayTone());
+            } else {
+                syncActiveHotbarSlot();
+            }
+            renderPaletteRows();
+            renderQuickPalette();
+            updateCursorPreview(lastMouseX, lastMouseZ);
+        }
+
+        function addQuickPaletteItem(item, replaceIndex = null) {
+            const valid = validPaletteItem(item);
+            if (!valid) return;
+            saveCurrentStateToUndo();
+            if (replaceIndex !== null && replaceIndex >= 0 && replaceIndex < quickPaletteItems.length) {
+                quickPaletteItems[replaceIndex] = valid;
+            } else {
+                quickPaletteItems.push(valid);
+            }
+            saveQuickPalette();
+            renderQuickPalette();
+        }
+
+        function renderQuickPalette() {
+            if (!quickPaletteElement) return;
+            quickPaletteElement.innerHTML = "";
+
+            if (quickPaletteItems.length === 0) {
+                const note = document.createElement("div");
+                note.className = "empty-sidebar-note";
+                note.textContent = "Drag colors or shade swatches here.";
+                quickPaletteElement.appendChild(note);
+                return;
+            }
+
+            quickPaletteItems.forEach((item, index) => {
+                const info = layerCellInfo(item);
+                if (!info) return;
+                const baseCell = cellAtGlobal(lastMouseX, lastMouseZ);
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = `quick-palette-item ${selectedColor === info.color && selectedBlockForColor(info.color).key === info.block.key && (!manualShadingActive() || selectedTone === (info.tone || "normal")) ? "active" : ""}`;
+                button.style.backgroundColor = rgbToCss(colorForLayerCell(item, baseCell) || rgbForMapTone(info.color, "normal"));
+                button.dataset.tooltip = quickPaletteItemTooltip(item);
+                button.draggable = true;
+                button.addEventListener("click", () => selectQuickPaletteItem(item));
+                button.addEventListener("dragstart", event => {
+                    event.dataTransfer.setData("application/json", JSON.stringify(item));
+                    event.dataTransfer.effectAllowed = "copyMove";
+                });
+                quickPaletteElement.appendChild(button);
+            });
+        }
+
+        function parseDraggedPaletteItem(event) {
+            const raw = event.dataTransfer.getData("application/json");
+            if (!raw) return null;
+            try {
+                return validPaletteItem(JSON.parse(raw));
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function createLayer(name, kind = "paint") {
+            return {
+                id: `layer-${nextLayerId++}`,
+                name,
+                kind,
+                visible: true,
+                locked: false,
+                cells: kind === "paint" ? new Map() : null
+            };
+        }
+
+        function resetEditorLayers() {
+            nextLayerId = 1;
+            const base = createLayer("Layer 1", "base");
+            editorLayers = [base];
+            activeLayerId = base.id;
+            renderLayers();
+        }
+
+        function activeLayer() {
+            return editorLayers.find(layer => layer.id === activeLayerId) || editorLayers[0] || null;
+        }
+
+        function activeLayerIsBase() {
+            const layer = activeLayer();
+            return !!(layer && layer.kind === "base");
+        }
+
+        function layerIndexById(layerId) {
+            return editorLayers.findIndex(layer => layer.id === layerId);
+        }
+
+        function layerDisplayName(index) {
+            return `Layer ${index + 1}`;
+        }
+
+        function layerCanPaint(layer = activeLayer()) {
+            if (!layer) return false;
+            if (!layer.visible) {
+                setPaletteStatus("Active layer is hidden. Show it before painting.");
+                return false;
+            }
+            if (layer.locked) {
+                setPaletteStatus("Active layer is locked. Unlock it before painting.");
+                return false;
+            }
+            return true;
+        }
+
+        function serializeLayer(layer) {
+            return {
+                id: layer.id,
+                name: layer.name,
+                kind: layer.kind,
+                visible: layer.visible,
+                locked: layer.locked,
+                cells: layer.kind === "paint" ? Array.from(layer.cells.entries()) : []
+            };
+        }
+
+        function deserializeLayer(raw) {
+            const layer = {
+                id: raw.id,
+                name: raw.name,
+                kind: raw.kind,
+                visible: raw.visible !== false,
+                locked: !!raw.locked,
+                cells: raw.kind === "paint" ? new Map() : null
+            };
+            if (layer.kind === "paint" && Array.isArray(raw.cells)) {
+                for (const [key, value] of raw.cells) {
+                    const valid = validPaletteItem(value);
+                    if (valid) layer.cells.set(key, valid);
+                }
+            }
+            return layer;
+        }
+
+        function renderLayers() {
+            if (!layersListElement) return;
+            layersListElement.innerHTML = "";
+
+            if (editorLayers.length === 0) {
+                const note = document.createElement("div");
+                note.className = "empty-sidebar-note";
+                note.textContent = "Import an NBT to create the base layer.";
+                layersListElement.appendChild(note);
+            }
+
+            editorLayers.forEach((layer, index) => {
+                const row = document.createElement("div");
+                row.className = `layer-row ${layer.id === activeLayerId ? "active" : ""}`;
+                row.dataset.tooltip = layer.kind === "base" ? "Imported NBT base layer" : "Paint overlay layer";
+                row.addEventListener("click", () => {
+                    activeLayerId = layer.id;
+                    renderLayers();
+                    updateCursorPreview(lastMouseX, lastMouseZ);
+                });
+
+                const layerNumber = document.createElement("div");
+                layerNumber.className = "layer-index";
+                layerNumber.textContent = String(index + 1);
+                row.appendChild(layerNumber);
+
+                const name = document.createElement("div");
+                name.className = "layer-name";
+                name.textContent = layerDisplayName(index);
+                row.appendChild(name);
+
+                const hide = document.createElement("button");
+                hide.type = "button";
+                hide.className = `layer-btn ${layer.visible ? "active" : ""}`;
+                hide.textContent = "H";
+                hide.dataset.tooltip = layer.visible ? "Hide layer" : "Show layer";
+                hide.addEventListener("click", event => {
+                    event.stopPropagation();
+                    saveCurrentStateToUndo();
+                    layer.visible = !layer.visible;
+                    renderLayers();
+                    renderFullCanvas();
+                    updateCursorPreview(lastMouseX, lastMouseZ);
+                });
+                row.appendChild(hide);
+
+                const lock = document.createElement("button");
+                lock.type = "button";
+                lock.className = `layer-btn ${layer.locked ? "active" : ""}`;
+                lock.textContent = "L";
+                lock.dataset.tooltip = layer.locked ? "Unlock layer" : "Lock layer";
+                lock.addEventListener("click", event => {
+                    event.stopPropagation();
+                    saveCurrentStateToUndo();
+                    layer.locked = !layer.locked;
+                    renderLayers();
+                });
+                row.appendChild(lock);
+
+                const del = document.createElement("button");
+                del.type = "button";
+                del.className = "layer-btn delete";
+                del.textContent = "X";
+                del.disabled = layer.kind === "base";
+                del.dataset.tooltip = layer.kind === "base" ? "Base layer cannot be deleted" : "Delete layer";
+                del.addEventListener("click", event => {
+                    event.stopPropagation();
+                    if (layer.kind === "base") return;
+                    saveCurrentStateToUndo();
+                    const removeIndex = layerIndexById(layer.id);
+                    editorLayers.splice(removeIndex, 1);
+                    if (activeLayerId === layer.id) activeLayerId = (editorLayers[Math.min(removeIndex, editorLayers.length - 1)] || editorLayers[0]).id;
+                    renderLayers();
+                    renderFullCanvas();
+                    updateCursorPreview(lastMouseX, lastMouseZ);
+                });
+                row.appendChild(del);
+
+                layersListElement.appendChild(row);
+            });
+
+            const currentLayer = activeLayer();
+            if (addLayerBtn) addLayerBtn.disabled = mapWidth === 0 || mapHeight === 0;
+            if (moveLayerUpBtn) moveLayerUpBtn.disabled = !currentLayer || currentLayer.kind === "base" || layerIndexById(activeLayerId) <= 1;
+            if (moveLayerDownBtn) moveLayerDownBtn.disabled = !currentLayer || currentLayer.kind === "base" || layerIndexById(activeLayerId) === -1 || layerIndexById(activeLayerId) >= editorLayers.length - 1;
+        }
+
+        function addPaintLayer() {
+            saveCurrentStateToUndo();
+            const layer = createLayer("Layer", "paint");
+            editorLayers.push(layer);
+            activeLayerId = layer.id;
+            renderLayers();
+            renderFullCanvas();
+        }
+
+        function moveActiveLayer(direction) {
+            const index = layerIndexById(activeLayerId);
+            const currentLayer = activeLayer();
+            const nextIndex = index + direction;
+            if (!currentLayer || currentLayer.kind === "base") return;
+            if (index < 0 || nextIndex < 0 || nextIndex >= editorLayers.length) return;
+            if (editorLayers[nextIndex] && editorLayers[nextIndex].kind === "base") return;
+            saveCurrentStateToUndo();
+            const [layer] = editorLayers.splice(index, 1);
+            editorLayers.splice(nextIndex, 0, layer);
+            renderLayers();
+            renderFullCanvas();
+        }
+
         function hotbarSlotFromKeyEvent(event) {
             if (/^[1-9]$/.test(event.key)) return Number(event.key) - 1;
             const digitMatch = event.code && event.code.match(/^Digit([1-9])$/);
@@ -2171,6 +2737,17 @@
                         swatch.className = `color-swatch tone-swatch ${color.id === selectedColor.id && selectedTone === tone ? "active" : ""}`;
                         swatch.style.backgroundColor = rgbToCss(rgbForMapTone(color, tone));
                         swatch.dataset.tooltip = `${TONE_LABELS[tone]} shade`;
+                        swatch.draggable = true;
+                        swatch.addEventListener("dragstart", event => {
+                            const block = selectedBlockForColor(color);
+                            if (!block) return;
+                            event.dataTransfer.setData("application/json", JSON.stringify({
+                                colorId: color.id,
+                                blockKey: block.key,
+                                tone
+                            }));
+                            event.dataTransfer.effectAllowed = "copy";
+                        });
                         swatch.onclick = event => {
                             event.stopPropagation();
                             selectPaletteColor(color, tone);
@@ -2182,6 +2759,17 @@
                     const swatch = document.createElement('div');
                     swatch.className = 'color-swatch';
                     swatch.style.backgroundColor = color.hex;
+                    swatch.draggable = true;
+                    swatch.addEventListener("dragstart", event => {
+                        const block = selectedBlockForColor(color);
+                        if (!block) return;
+                        event.dataTransfer.setData("application/json", JSON.stringify({
+                            colorId: color.id,
+                            blockKey: block.key,
+                            tone: null
+                        }));
+                        event.dataTransfer.effectAllowed = "copy";
+                    });
                     row.appendChild(swatch);
                 }
 
@@ -2211,6 +2799,7 @@
             });
             renderPaletteControls();
             renderHotbar();
+            renderQuickPalette();
         }
 
         function setPaletteMode(mode, message = "", refreshPreview = true) {
@@ -2290,6 +2879,42 @@
             updateCursorPreview(lastMouseX, lastMouseZ);
         });
 
+        quickPaletteElement.addEventListener("dragover", event => {
+            event.preventDefault();
+            quickPaletteElement.classList.add("drag-over");
+            event.dataTransfer.dropEffect = "copy";
+        });
+
+        quickPaletteElement.addEventListener("dragleave", event => {
+            if (!quickPaletteElement.contains(event.relatedTarget)) {
+                quickPaletteElement.classList.remove("drag-over");
+            }
+        });
+
+        quickPaletteElement.addEventListener("drop", event => {
+            event.preventDefault();
+            quickPaletteElement.classList.remove("drag-over");
+            const item = parseDraggedPaletteItem(event);
+            if (!item) return;
+            const targetItem = event.target.closest(".quick-palette-item");
+            const replaceIndex = targetItem ? Array.from(quickPaletteElement.children).indexOf(targetItem) : null;
+            addQuickPaletteItem(item, replaceIndex);
+        });
+
+        clearQuickPaletteBtn.addEventListener("click", () => {
+            if (quickPaletteItems.length === 0) return;
+            saveCurrentStateToUndo();
+            quickPaletteItems = [];
+            saveQuickPalette();
+            renderQuickPalette();
+        });
+
+        addLayerBtn.addEventListener("click", addPaintLayer);
+        moveLayerUpBtn.addEventListener("click", () => moveActiveLayer(-1));
+        moveLayerDownBtn.addEventListener("click", () => moveActiveLayer(1));
+
+        loadQuickPalette();
+        renderLayers();
         renderSupportSelect();
         renderPaletteRows();
 
@@ -2885,6 +3510,7 @@
             
             undoStack = [];
             redoStack = [];
+            resetEditorLayers();
             updateButtons();
             renderFullCanvas();
             previewCtx.clearRect(0, 0, mapWidth, mapHeight);
@@ -3194,6 +3820,31 @@
             const targetBlock = selectedBlockForColor(selectedColor);
             if (!targetBlock) return false;
 
+            const layer = activeLayer();
+            if (!layerCanPaint(layer)) return false;
+            if (layer.kind === "paint") {
+                const targetCell = layerCellFromSelection(selectedColor, selectedDisplayTone());
+                if (!targetCell) return false;
+                let changed = false;
+                for (const cell of uniqueCells(cells)) {
+                    const key = layerCellKey(cell.globalX, cell.globalZ);
+                    const existing = layer.cells.get(key);
+                    if (
+                        existing &&
+                        existing.colorId === targetCell.colorId &&
+                        existing.blockKey === targetCell.blockKey &&
+                        (existing.tone || null) === (targetCell.tone || null)
+                    ) continue;
+                    layer.cells.set(key, { ...targetCell });
+                    changed = true;
+                }
+                if (changed) {
+                    renderLayers();
+                    renderFullCanvas();
+                }
+                return changed;
+            }
+
             const targetCells = [];
             for (const cell of uniqueCells(cells)) {
                 const targetPaletteIndex = ensurePaletteState(cell.file, targetBlock);
@@ -3217,7 +3868,7 @@
             const yChanged = applyManualShadingSolver(changedCells);
             syncSupportsForCells(supportRecords);
 
-            if (updateCanvasDirectly && !manualShadingActive() && !yChanged) {
+            if (updateCanvasDirectly && !manualShadingActive() && !yChanged && !hasVisiblePaintLayers()) {
                 for (const { cell } of targetCells) {
                     ctx.fillStyle = rgbToCss(rgbForCellColor(cell, selectedColor));
                     ctx.fillRect(cell.globalX, cell.globalZ, 1, 1);
@@ -3228,6 +3879,56 @@
             return true;
         }
 
+        function compositePixelAt(x, z) {
+            if (x < 0 || x >= mapWidth || z < 0 || z >= mapHeight) return null;
+            const baseCell = cellAtGlobal(x, z);
+
+            for (let layerIndex = editorLayers.length - 1; layerIndex >= 0; layerIndex--) {
+                const layer = editorLayers[layerIndex];
+                if (!layer.visible) continue;
+                if (layer.kind === "paint") {
+                    const layerCell = layer.cells.get(layerCellKey(x, z));
+                    if (!layerCell) continue;
+                    const info = layerCellInfo(layerCell);
+                    if (!info) continue;
+                    return {
+                        color: info.color,
+                        block: info.block,
+                        tone: info.tone,
+                        rgb: colorForLayerCell(layerCell, baseCell),
+                        layerCell,
+                        baseCell,
+                        layer
+                    };
+                }
+
+                if (layer.kind === "base" && baseCell) {
+                    const info = updateCellMetadata(baseCell);
+                    if (!info) continue;
+                    return {
+                        color: info.color,
+                        block: info.block,
+                        tone: paletteMode === "staircased" ? staircasedToneForCell(baseCell) : null,
+                        rgb: rgbForCellColor(baseCell, info.color),
+                        layerCell: null,
+                        baseCell,
+                        layer
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        function compositeMatchesSource(x, z, source) {
+            const pixel = compositePixelAt(x, z);
+            return !!(pixel &&
+                source &&
+                pixel.color.id === source.colorId &&
+                pixel.block.key === source.blockKey &&
+                (!manualShadingActive() || normalizeTone(pixel.tone) === normalizeTone(source.tone)));
+        }
+
         function renderFullCanvas() {
             if (mapWidth === 0 || mapHeight === 0) return;
             const imageData = ctx.createImageData(mapWidth, mapHeight);
@@ -3235,19 +3936,16 @@
             for(let i=0; i<imageData.data.length; i++) imageData.data[i] = 0; 
 
             for(let i = 0; i < gridMap.length; i++) {
-                const cell = gridMap[i];
-                if (cell) {
-                    const blockInfo = updateCellMetadata(cell);
-                    
-                    if (blockInfo) {
-                        const [r, g, b] = rgbForCellColor(cell, blockInfo.color);
-                        
-                        const pxIdx = i * 4;
-                        imageData.data[pxIdx] = r;
-                        imageData.data[pxIdx+1] = g;
-                        imageData.data[pxIdx+2] = b;
-                        imageData.data[pxIdx+3] = 255;
-                    }
+                const x = i % mapWidth;
+                const z = Math.floor(i / mapWidth);
+                const pixel = compositePixelAt(x, z);
+                if (pixel && pixel.rgb) {
+                    const [r, g, b] = pixel.rgb;
+                    const pxIdx = i * 4;
+                    imageData.data[pxIdx] = r;
+                    imageData.data[pxIdx+1] = g;
+                    imageData.data[pxIdx+2] = b;
+                    imageData.data[pxIdx+3] = 255;
                 }
             }
             ctx.putImageData(imageData, 0, 0);
@@ -3522,22 +4220,19 @@
         }
 
         function selectColorFromCell(x, z) {
-            const cell = cellAtGlobal(x, z);
-            if (!cell) return false;
+            const pixel = compositePixelAt(x, z);
+            if (!pixel || !pixel.color || !pixel.block) return false;
 
-            const info = updateCellMetadata(cell);
-            if (!info || !info.color || !info.block) return false;
-
-            selectedColor = info.color;
-            if (info.color.blocks.some(block => block.key === info.block.key)) {
-                selectedBlockByColorId[info.color.id] = info.block.key;
+            selectedColor = pixel.color;
+            if (pixel.color.blocks.some(block => block.key === pixel.block.key)) {
+                selectedBlockByColorId[pixel.color.id] = pixel.block.key;
             }
             if (manualShadingAvailable()) {
-                selectedTone = staircasedToneForCell(cell);
+                selectedTone = normalizeTone(pixel.tone);
             }
 
             if (heldHotbarSlot !== null) {
-                const snapshot = currentHotbarSnapshot(info.color, selectedDisplayTone());
+                const snapshot = currentHotbarSnapshot(pixel.color, selectedDisplayTone());
                 if (snapshot) {
                     hotbarSlots[heldHotbarSlot] = snapshot;
                     activeHotbarSlot = heldHotbarSlot;
@@ -3560,13 +4255,13 @@
             const startCell = cellAtGlobal(cx, cz);
             if (!startCell) return false;
 
-            const sourceInfo = updateCellMetadata(startCell);
+            const sourceInfo = compositePixelAt(cx, cz);
             const targetBlock = selectedBlockForColor(selectedColor);
             if (!sourceInfo || !sourceInfo.color || !sourceInfo.block || !targetBlock) return false;
 
             const sourceColorId = sourceInfo.color.id;
             const sourceBlockKey = sourceInfo.block.key;
-            const sourceTone = staircasedToneForCell(startCell);
+            const sourceTone = normalizeTone(sourceInfo.tone);
             if (
                 sourceColorId === selectedColor.id &&
                 sourceBlockKey === targetBlock.key &&
@@ -3586,7 +4281,7 @@
                 visited.add(index);
 
                 const cell = gridMap[index];
-                if (!cellMatchesSource(cell, sourceColorId, sourceBlockKey)) continue;
+                if (!cell || !compositeMatchesSource(x, z, { colorId: sourceColorId, blockKey: sourceBlockKey, tone: sourceTone })) continue;
                 cells.push(cell);
 
                 stack.push(
@@ -3738,7 +4433,16 @@
                     ys[i] = -1;
                 }
             }
-            return { states, ys };
+            return {
+                states,
+                ys,
+                layers: editorLayers.map(serializeLayer),
+                activeLayerId,
+                quickPaletteItems: quickPaletteItems.map(item => ({ ...item })),
+                selectedColorId: selectedColor ? selectedColor.id : null,
+                selectedTone,
+                selectedBlockByColorId: { ...selectedBlockByColorId }
+            };
         }
 
         function saveCurrentStateToUndo() {
@@ -3765,6 +4469,31 @@
                 }
             }
             if (changedCells.length > 0) syncSupportsForCells(changedCells);
+            if (snapshot.layers) {
+                editorLayers = snapshot.layers.map(deserializeLayer);
+                activeLayerId = snapshot.activeLayerId || (editorLayers[0] && editorLayers[0].id) || null;
+                const maxLayerNumber = editorLayers.reduce((max, layer) => {
+                    const match = String(layer.id).match(/layer-(\d+)/);
+                    return match ? Math.max(max, Number(match[1])) : max;
+                }, 0);
+                nextLayerId = Math.max(nextLayerId, maxLayerNumber + 1);
+            }
+            if (snapshot.quickPaletteItems) {
+                quickPaletteItems = snapshot.quickPaletteItems.map(validPaletteItem).filter(Boolean);
+                saveQuickPalette();
+            }
+            if (snapshot.selectedBlockByColorId) {
+                for (const colorId in snapshot.selectedBlockByColorId) {
+                    selectedBlockByColorId[colorId] = snapshot.selectedBlockByColorId[colorId];
+                }
+            }
+            if (snapshot.selectedColorId && COLORS_BY_ID.has(snapshot.selectedColorId)) {
+                selectedColor = COLORS_BY_ID.get(snapshot.selectedColorId);
+            }
+            if (snapshot.selectedTone) selectedTone = normalizeTone(snapshot.selectedTone);
+            renderLayers();
+            renderQuickPalette();
+            renderPaletteRows();
             renderFullCanvas();
         }
 
@@ -4047,6 +4776,14 @@
             body.appendChild(element);
         }
 
+        function stackFullscreenPanels(panels, left, top, gap) {
+            let nextTop = top;
+            for (const panel of panels) {
+                clampHudPanel(panel, left, nextTop);
+                nextTop += panel.offsetHeight + gap;
+            }
+        }
+
         function setupFullscreenHud() {
             if (fullscreenHudOverlay) return;
 
@@ -4067,20 +4804,31 @@
 
             const paletteWidth = Math.min(340, Math.max(220, window.innerWidth - 40));
             const hotbarWidth = Math.min(480, Math.max(260, window.innerWidth - 40));
+            const customPalettePanel = createFullscreenHudPanel("Custom Palette", "fullscreen-hud-custom-palette", 18, 18);
+            const layersPanel = createFullscreenHudPanel("Layers", "fullscreen-hud-layers", 18, 18);
             const toolsPanel = createFullscreenHudPanel("Tools", "fullscreen-hud-tools", 18, 18);
-            const historyPanel = createFullscreenHudPanel("Undo / Redo", "fullscreen-hud-history", 18, 112);
+            const historyPanel = createFullscreenHudPanel("Undo / Redo", "fullscreen-hud-history", 18, 18);
             const paletteHudPanel = createFullscreenHudPanel("Palette", "fullscreen-hud-palette", Math.max(18, window.innerWidth - paletteWidth - 18), 18);
             const hotbarPanel = createFullscreenHudPanel("Hotbar", "fullscreen-hud-hotbar", Math.max(18, (window.innerWidth - hotbarWidth) / 2), Math.max(18, window.innerHeight - 88), "Press H to hide/show GUI");
 
             historyPanel.body.classList.add("fullscreen-hud-controls-body");
 
-            moveElementToFullscreenPanel(toolGroup, toolsPanel.body);
+            moveElementToFullscreenPanel(customPaletteSection, customPalettePanel.body);
+            moveElementToFullscreenPanel(layersSection, layersPanel.body);
+            moveElementToFullscreenPanel(toolSidebarSection, toolsPanel.body);
             moveElementToFullscreenPanel(undoBtn, historyPanel.body);
             moveElementToFullscreenPanel(redoBtn, historyPanel.body);
             moveElementToFullscreenPanel(palettePanel, paletteHudPanel.body);
             moveElementToFullscreenPanel(hotbarArea, hotbarPanel.body);
 
-            [toolsPanel.panel, historyPanel.panel, paletteHudPanel.panel, hotbarPanel.panel].forEach(panel => {
+            stackFullscreenPanels(
+                [customPalettePanel.panel, layersPanel.panel, toolsPanel.panel, historyPanel.panel],
+                18,
+                18,
+                8
+            );
+
+            [paletteHudPanel.panel, hotbarPanel.panel].forEach(panel => {
                 clampHudPanel(panel, parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
             });
         }
@@ -4387,6 +5135,97 @@
             return chunkBlocks;
         }
 
+        function hasVisiblePaintLayers() {
+            return editorLayers.some(layer => layer.kind === "paint" && layer.visible && layer.cells.size > 0);
+        }
+
+        function exportNeedsLayerFlattening() {
+            return hasVisiblePaintLayers() || editorLayers.some(layer => layer.kind === "base" && !layer.visible);
+        }
+
+        function captureLoadedFileStructuralState() {
+            return loadedFiles.map(lf => ({
+                lf,
+                blocksList: lf.blocksList.slice(),
+                supportCreatedKeys: new Set(lf.supportCreatedKeys)
+            }));
+        }
+
+        function restoreLoadedFileStructuralState(states) {
+            for (const state of states) {
+                state.lf.blocksList.splice(0, state.lf.blocksList.length, ...state.blocksList);
+                state.lf.supportCreatedKeys = new Set(state.supportCreatedKeys);
+                rebuildBlockLookup(state.lf);
+                updateStructureSize(state.lf);
+            }
+        }
+
+        function applyVisibleLayersToBaseForExport() {
+            if (!exportNeedsLayerFlattening()) return;
+
+            const targetPixels = [];
+            const supportRecordCells = new Set();
+            const toneOverridesByColumn = new Map();
+            const airBlock = makeBlock("Air", "minecraft:air");
+
+            for (const cell of gridMap) {
+                if (!cell) continue;
+                const pixel = compositePixelAt(cell.globalX, cell.globalZ);
+
+                const currentInfo = updateCellMetadata(cell);
+                const targetBlock = pixel && pixel.block ? pixel.block : airBlock;
+                const targetColor = pixel && pixel.color ? pixel.color : null;
+                const currentTone = paletteMode === "staircased" ? staircasedToneForCell(cell) : null;
+                const targetTone = pixel && pixel.tone ? normalizeTone(pixel.tone) : null;
+                const stateChanged = !currentInfo || !targetColor || currentInfo.color.id !== targetColor.id || currentInfo.block.key !== targetBlock.key;
+                const toneChanged = manualShadingAvailable() && targetTone && currentTone !== targetTone;
+                if (!stateChanged && !toneChanged) continue;
+
+                targetPixels.push({ cell, color: targetColor, block: targetBlock, tone: targetTone });
+                supportRecordCells.add(cell);
+
+                if (toneChanged) {
+                    if (!toneOverridesByColumn.has(cell.globalX)) toneOverridesByColumn.set(cell.globalX, new Map());
+                    toneOverridesByColumn.get(cell.globalX).set(cell, targetTone);
+                    collectColumnCells(cell.globalX).forEach(columnCell => supportRecordCells.add(columnCell));
+                }
+            }
+
+            if (targetPixels.length === 0) return;
+
+            const supportRecords = Array.from(supportRecordCells, cell => supportChangeRecordForCell(cell));
+
+            for (const target of targetPixels) {
+                const state = ensurePaletteState(target.cell.file, target.block);
+                target.cell.blockRef.state.value = state;
+                target.cell.colorId = target.color ? target.color.id : null;
+                target.cell.blockKey = target.block.key;
+            }
+
+            toneOverridesByColumn.forEach((overrides, globalX) => {
+                solveColumnTones(globalX, overrides);
+            });
+
+            syncSupportsForCells(supportRecords);
+        }
+
+        async function withFlattenedLayersForExport(callback) {
+            if (!exportNeedsLayerFlattening()) {
+                return await callback();
+            }
+
+            const editorSnapshot = createEditorSnapshot();
+            const fileStates = captureLoadedFileStructuralState();
+            try {
+                applyVisibleLayersToBaseForExport();
+                return await callback();
+            } finally {
+                applySnapshot(editorSnapshot);
+                restoreLoadedFileStructuralState(fileStates);
+                renderFullCanvas();
+            }
+        }
+
         function createCombinedNbtRoot() {
             if (loadedFiles.length === 0) throw new Error("Upload files first.");
 
@@ -4471,7 +5310,7 @@
             };
         }
 
-        function downloadCombinedNbt() {
+        async function downloadCombinedNbt() {
             if (loadedFiles.length === 0) { alert("Upload files first."); return; }
 
             const button = document.getElementById('saveSingleBtn');
@@ -4479,9 +5318,11 @@
             button.innerText = "Building NBT...";
 
             try {
-                const writer = new NBTWriter();
-                writer.writeTag(createCombinedNbtRoot());
-                downloadBlob(pako.gzip(writer.getOutput()), `${originalFileName || "mapart"}_combined.nbt`);
+                await withFlattenedLayersForExport(async () => {
+                    const writer = new NBTWriter();
+                    writer.writeTag(createCombinedNbtRoot());
+                    downloadBlob(pako.gzip(writer.getOutput()), `${originalFileName || "mapart"}_combined.nbt`);
+                });
             } catch (error) {
                 alert("Failed to export single NBT: " + error.message);
             }
@@ -4497,6 +5338,7 @@
             document.getElementById(btnId).innerText = asZip ? "Compressing ZIP..." : "Downloading...";
             
             try {
+                await withFlattenedLayersForExport(async () => {
                 const zip = new JSZip();
                 const needsSplit = loadedFiles.length === 1 && (mapWidth > 128 || mapHeight > 128);
                 let filesToExport = []; 
@@ -4633,6 +5475,7 @@
                     }
                 }
                 
+                });
             } catch (error) {
                 alert("Failed to export: " + error.message);
             }
