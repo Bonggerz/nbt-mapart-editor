@@ -234,7 +234,7 @@
 
         .layer-row {
             display: grid;
-            grid-template-columns: 22px minmax(0, 1fr) 24px 24px 24px;
+            grid-template-columns: 24px minmax(0, 1fr) 20px 24px;
             gap: 5px;
             align-items: center;
             min-height: 30px;
@@ -248,12 +248,6 @@
         .layer-row.active {
             border-color: #a6e3a1;
             background: #3a3d52;
-        }
-
-        .layer-index {
-            color: #a6adc8;
-            font-size: 11px;
-            text-align: center;
         }
 
         .layer-name {
@@ -279,6 +273,90 @@
 
         .layer-btn.active {
             background: #a6e3a1;
+        }
+
+        .layer-visibility {
+            position: relative;
+        }
+
+        .eye-icon {
+            position: relative;
+            width: 14px;
+            height: 9px;
+            border: 2px solid #11111b;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+        }
+
+        .eye-icon::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 4px;
+            height: 4px;
+            background: #11111b;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .layer-visibility.hidden .eye-icon::after {
+            content: "";
+            position: absolute;
+            left: -4px;
+            top: 2px;
+            width: 20px;
+            height: 3px;
+            background: #ff334f;
+            border-radius: 2px;
+            transform: rotate(-35deg);
+            transform-origin: center;
+            box-shadow: 0 0 0 1px #313244;
+        }
+
+        .layer-lock-toggle.active {
+            background: #a6e3a1;
+        }
+
+        .layer-lock-toggle .lock-icon {
+            top: 3px;
+        }
+
+        .lock-icon,
+        .layer-lock-indicator {
+            position: relative;
+            display: inline-block;
+            width: 12px;
+            height: 9px;
+            border: 2px solid currentColor;
+            border-radius: 2px;
+            box-sizing: border-box;
+        }
+
+        .lock-icon::before,
+        .layer-lock-indicator::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: -8px;
+            width: 8px;
+            height: 8px;
+            border: 2px solid currentColor;
+            border-bottom: 0;
+            border-radius: 6px 6px 0 0;
+            transform: translateX(-50%);
+            box-sizing: border-box;
+        }
+
+        .layer-lock-indicator {
+            color: #f9e2af;
+            justify-self: center;
+            top: 3px;
+        }
+
+        .layer-lock-indicator.empty {
+            visibility: hidden;
         }
 
         .layer-btn.delete {
@@ -879,7 +957,7 @@
 
     <div class="toolbar">
         <label>NBT: <input type="file" id="fileInput" accept=".nbt" multiple></label>
-        <label id="profileImportControl">Profile: <input type="file" id="paletteProfileInput" accept=".txt,.pal,.palette"></label>
+        <label id="profileImportControl" data-tooltip="Import color palette from MapArtCraft">Profile: <input type="file" id="paletteProfileInput" accept=".txt,.pal,.palette"></label>
 
         <button id="undoBtn" data-tooltip="Press Ctrl+Z to undo" disabled>Undo</button>
         <button id="redoBtn" data-tooltip="Press Ctrl+Y to redo" disabled>Redo</button>
@@ -905,6 +983,7 @@
                 <div class="sidebar-header">
                     <span>Layers</span>
                     <div class="sidebar-header-actions">
+                        <button id="lockLayerBtn" class="sidebar-icon-btn layer-lock-toggle" type="button" data-tooltip="Lock selected layer"><span class="lock-icon"></span></button>
                         <button id="addLayerBtn" class="sidebar-icon-btn" type="button" data-tooltip="Add layer">+</button>
                         <button id="moveLayerUpBtn" class="sidebar-icon-btn" type="button" data-tooltip="Move active layer up">^</button>
                         <button id="moveLayerDownBtn" class="sidebar-icon-btn" type="button" data-tooltip="Move active layer down">v</button>
@@ -1903,6 +1982,7 @@
         const clearQuickPaletteBtn = document.getElementById('clearQuickPaletteBtn');
         const layersListElement = document.getElementById('layersList');
         const addLayerBtn = document.getElementById('addLayerBtn');
+        const lockLayerBtn = document.getElementById('lockLayerBtn');
         const moveLayerUpBtn = document.getElementById('moveLayerUpBtn');
         const moveLayerDownBtn = document.getElementById('moveLayerDownBtn');
         const customPaletteSection = document.getElementById('customPaletteSection');
@@ -2415,7 +2495,7 @@
 
         function resetEditorLayers() {
             nextLayerId = 1;
-            const base = createLayer("Layer 1", "base");
+            const base = createLayer("Background", "base");
             editorLayers = [base];
             activeLayerId = base.id;
             renderLayers();
@@ -2434,8 +2514,36 @@
             return editorLayers.findIndex(layer => layer.id === layerId);
         }
 
-        function layerDisplayName(index) {
-            return `Layer ${index + 1}`;
+        function layerIdNumber(layer) {
+            const match = String(layer && layer.id || "").match(/^layer-(\d+)$/);
+            return match ? Number(match[1]) : null;
+        }
+
+        function layerNameNumber(layer) {
+            const match = String(layer && layer.name || "").trim().match(/^Layer\s+(\d+)$/i);
+            return match ? Number(match[1]) : null;
+        }
+
+        function layerDisplayName(layer, index) {
+            if (layer && layer.kind === "base") return "Background";
+            const name = String(layer && layer.name || "").trim();
+            if (name && name !== "Layer") return name;
+            const idNumber = layerIdNumber(layer);
+            return `Layer ${idNumber || index + 1}`;
+        }
+
+        function nextLayerName() {
+            const maxNumber = editorLayers.reduce((max, layer) => {
+                if (!layer || layer.kind !== "paint") return max;
+                return Math.max(max, layerNameNumber(layer) || 0);
+            }, 0);
+            return `Layer ${Math.max(1, maxNumber + 1)}`;
+        }
+
+        function layerEntriesTopToBottom() {
+            return editorLayers
+                .map((layer, index) => ({ layer, index }))
+                .reverse();
         }
 
         function layerCanPaint(layer = activeLayer()) {
@@ -2491,7 +2599,7 @@
                 layersListElement.appendChild(note);
             }
 
-            editorLayers.forEach((layer, index) => {
+            layerEntriesTopToBottom().forEach(({ layer, index }) => {
                 const row = document.createElement("div");
                 row.className = `layer-row ${layer.id === activeLayerId ? "active" : ""}`;
                 row.dataset.tooltip = layer.kind === "base" ? "Imported NBT base layer" : "Paint overlay layer";
@@ -2501,21 +2609,13 @@
                     updateCursorPreview(lastMouseX, lastMouseZ);
                 });
 
-                const layerNumber = document.createElement("div");
-                layerNumber.className = "layer-index";
-                layerNumber.textContent = String(index + 1);
-                row.appendChild(layerNumber);
-
-                const name = document.createElement("div");
-                name.className = "layer-name";
-                name.textContent = layerDisplayName(index);
-                row.appendChild(name);
-
                 const hide = document.createElement("button");
                 hide.type = "button";
-                hide.className = `layer-btn ${layer.visible ? "active" : ""}`;
-                hide.textContent = "H";
+                hide.className = `layer-btn layer-visibility ${layer.visible ? "active" : "hidden"}`;
                 hide.dataset.tooltip = layer.visible ? "Hide layer" : "Show layer";
+                const eyeIcon = document.createElement("span");
+                eyeIcon.className = "eye-icon";
+                hide.appendChild(eyeIcon);
                 hide.addEventListener("click", event => {
                     event.stopPropagation();
                     saveCurrentStateToUndo();
@@ -2526,18 +2626,15 @@
                 });
                 row.appendChild(hide);
 
-                const lock = document.createElement("button");
-                lock.type = "button";
-                lock.className = `layer-btn ${layer.locked ? "active" : ""}`;
-                lock.textContent = "L";
-                lock.dataset.tooltip = layer.locked ? "Unlock layer" : "Lock layer";
-                lock.addEventListener("click", event => {
-                    event.stopPropagation();
-                    saveCurrentStateToUndo();
-                    layer.locked = !layer.locked;
-                    renderLayers();
-                });
-                row.appendChild(lock);
+                const name = document.createElement("div");
+                name.className = "layer-name";
+                name.textContent = layerDisplayName(layer, index);
+                row.appendChild(name);
+
+                const lockIndicator = document.createElement("span");
+                lockIndicator.className = `layer-lock-indicator ${layer.locked ? "" : "empty"}`;
+                if (layer.locked) lockIndicator.dataset.tooltip = "Layer is locked";
+                row.appendChild(lockIndicator);
 
                 const del = document.createElement("button");
                 del.type = "button";
@@ -2562,18 +2659,32 @@
             });
 
             const currentLayer = activeLayer();
+            const currentIndex = layerIndexById(activeLayerId);
             if (addLayerBtn) addLayerBtn.disabled = mapWidth === 0 || mapHeight === 0;
-            if (moveLayerUpBtn) moveLayerUpBtn.disabled = !currentLayer || currentLayer.kind === "base" || layerIndexById(activeLayerId) <= 1;
-            if (moveLayerDownBtn) moveLayerDownBtn.disabled = !currentLayer || currentLayer.kind === "base" || layerIndexById(activeLayerId) === -1 || layerIndexById(activeLayerId) >= editorLayers.length - 1;
+            if (lockLayerBtn) {
+                lockLayerBtn.disabled = !currentLayer;
+                lockLayerBtn.classList.toggle("active", !!(currentLayer && currentLayer.locked));
+                lockLayerBtn.dataset.tooltip = currentLayer && currentLayer.locked ? "Unlock selected layer" : "Lock selected layer";
+            }
+            if (moveLayerUpBtn) moveLayerUpBtn.disabled = !currentLayer || currentLayer.kind === "base" || currentIndex < 0 || currentIndex >= editorLayers.length - 1;
+            if (moveLayerDownBtn) moveLayerDownBtn.disabled = !currentLayer || currentLayer.kind === "base" || currentIndex <= 1;
         }
 
         function addPaintLayer() {
             saveCurrentStateToUndo();
-            const layer = createLayer("Layer", "paint");
+            const layer = createLayer(nextLayerName(), "paint");
             editorLayers.push(layer);
             activeLayerId = layer.id;
             renderLayers();
             renderFullCanvas();
+        }
+
+        function toggleActiveLayerLock() {
+            const layer = activeLayer();
+            if (!layer) return;
+            saveCurrentStateToUndo();
+            layer.locked = !layer.locked;
+            renderLayers();
         }
 
         function moveActiveLayer(direction) {
@@ -2974,8 +3085,9 @@
         });
 
         addLayerBtn.addEventListener("click", addPaintLayer);
-        moveLayerUpBtn.addEventListener("click", () => moveActiveLayer(-1));
-        moveLayerDownBtn.addEventListener("click", () => moveActiveLayer(1));
+        lockLayerBtn.addEventListener("click", toggleActiveLayerLock);
+        moveLayerUpBtn.addEventListener("click", () => moveActiveLayer(1));
+        moveLayerDownBtn.addEventListener("click", () => moveActiveLayer(-1));
 
         loadQuickPalette();
         renderLayers();
