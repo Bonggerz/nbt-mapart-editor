@@ -119,7 +119,7 @@
 
         .left-sidebar {
             display: grid;
-            grid-template-rows: minmax(145px, 1fr) minmax(130px, 0.8fr) auto;
+            grid-template-rows: minmax(128px, 1fr) auto minmax(100px, 0.68fr);
             gap: 10px;
             min-height: 0;
             height: var(--editor-panel-height);
@@ -166,27 +166,314 @@
         }
 
         .tool-sidebar .sidebar-body {
-            overflow: visible;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
         }
 
         .tool-sidebar .tool-group {
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: 7px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             width: 100%;
+            min-height: 0;
             padding: 0;
             background: transparent;
         }
 
-        .tool-sidebar .tool-group label {
-            align-self: center;
-            font-size: 12px;
+        .tool-select-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
         }
 
-        .tool-sidebar .tool-group select,
-        .tool-sidebar .tool-group input {
+        .tool-icon-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 5px;
+            width: 100%;
+        }
+
+        .tool-icon-btn {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            min-height: 27px;
+            padding: 0;
+            border: 2px solid #6c7086;
+            border-radius: 5px;
+            background: #313244;
+            color: #cdd6f4;
+            display: grid;
+            place-items: center;
+            box-shadow: inset 0 0 0 1px #11111b;
+        }
+
+        .tool-icon-btn:hover:not(:disabled) {
+            background: #313244;
+            border-color: #89b4fa;
+        }
+
+        .tool-icon-btn.active {
+            border-color: #a6e3a1;
+            background: #3a3d52;
+        }
+
+        .tool-icon-btn:disabled {
+            opacity: 0.35;
+            background: #1e1e2e;
+            border-color: #45475a;
+            cursor: default;
+        }
+
+        .tool-icon-btn.tool-placeholder,
+        .tool-icon-btn.tool-placeholder:hover,
+        .tool-icon-btn.tool-placeholder:disabled {
+            opacity: 1;
+            background: #1e1e2e;
+            border-color: #45475a;
+            color: #45475a;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .tool-controls-row {
+            display: grid;
+            grid-template-columns: auto 54px auto minmax(0, 1fr);
+            gap: 7px;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .tool-control {
+            display: contents;
+            min-width: 0;
+            color: #cdd6f4;
+            font-size: 12px;
+            line-height: 1.1;
+        }
+
+        .tool-control-text {
+            align-self: center;
+            white-space: nowrap;
+        }
+
+        .tool-control select,
+        .tool-control input {
             width: 100%;
             min-width: 0;
+            height: 25px;
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            border: 1px solid #6c7086;
+            padding: 3px 5px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .tool-icon {
+            position: relative;
+            display: block;
+            width: 24px;
+            height: 24px;
+            color: currentColor;
+        }
+
+        .tool-icon::before,
+        .tool-icon::after {
+            content: "";
+            position: absolute;
+            box-sizing: border-box;
+        }
+
+        .tool-icon.brush::before {
+            left: 4px;
+            top: 13px;
+            width: 16px;
+            height: 5px;
+            border-radius: 5px 5px 3px 3px;
+            background: currentColor;
+            transform: rotate(-42deg);
+        }
+
+        .tool-icon.brush::after {
+            left: 13px;
+            top: 3px;
+            width: 5px;
+            height: 14px;
+            border: 2px solid currentColor;
+            border-bottom: 0;
+            border-radius: 4px 4px 0 0;
+            transform: rotate(-42deg);
+        }
+
+        .tool-icon.line::before {
+            left: 3px;
+            top: 11px;
+            width: 19px;
+            height: 3px;
+            background: currentColor;
+            transform: rotate(-38deg);
+            border-radius: 2px;
+        }
+
+        .tool-svg {
+            width: 29px;
+            height: 29px;
+            display: block;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.85;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .tool-svg .thin {
+            stroke-width: 1.25;
+        }
+
+        .tool-svg .fill {
+            fill: currentColor;
+            stroke: none;
+        }
+
+        .tool-svg .dash {
+            stroke-width: 1.45;
+            stroke-dasharray: 3.8 3.8;
+        }
+
+        .tool-svg .loose-dash {
+            stroke-width: 1.45;
+            stroke-dasharray: 4.8 4.2;
+        }
+
+        .tool-svg .bold {
+            stroke-width: 2;
+        }
+
+        .tool-icon.rectangle::before,
+        .tool-icon.rect-select::before {
+            left: 4px;
+            top: 6px;
+            width: 16px;
+            height: 13px;
+            border: 2px solid currentColor;
+        }
+
+        .tool-icon.rect-select::before {
+            border-style: dashed;
+        }
+
+        .tool-icon.circle::before {
+            left: 4px;
+            top: 6px;
+            width: 16px;
+            height: 13px;
+            border: 2px solid currentColor;
+            border-radius: 50%;
+        }
+
+        .tool-icon.curve::before {
+            left: 5px;
+            top: 2px;
+            width: 12px;
+            height: 19px;
+            border-right: 3px solid currentColor;
+            border-radius: 50%;
+            transform: rotate(-8deg);
+        }
+
+        .tool-icon.curve::after {
+            left: 11px;
+            top: 2px;
+            width: 4px;
+            height: 4px;
+            background: currentColor;
+            border-radius: 50%;
+            box-shadow: -5px 17px 0 currentColor;
+        }
+
+        .tool-icon.bucket::before {
+            left: 5px;
+            top: 6px;
+            width: 13px;
+            height: 11px;
+            border: 2px solid currentColor;
+            border-radius: 2px;
+            transform: rotate(-32deg);
+        }
+
+        .tool-icon.bucket::after {
+            right: 2px;
+            bottom: 3px;
+            width: 7px;
+            height: 7px;
+            background: currentColor;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+        }
+
+        .tool-icon.picker::before {
+            left: 5px;
+            top: 3px;
+            width: 8px;
+            height: 15px;
+            border: 2px solid currentColor;
+            border-radius: 4px 4px 2px 2px;
+            transform: rotate(45deg);
+        }
+
+        .tool-icon.picker::after {
+            left: 13px;
+            top: 14px;
+            width: 8px;
+            height: 3px;
+            background: currentColor;
+            transform: rotate(45deg);
+            border-radius: 2px;
+        }
+
+        .tool-icon.text::before {
+            content: "T";
+            left: 5px;
+            top: 0;
+            font-size: 22px;
+            line-height: 24px;
+            font-weight: 900;
+            font-family: Arial, sans-serif;
+        }
+
+        .tool-icon.lasso-select::before {
+            left: 3px;
+            top: 6px;
+            width: 17px;
+            height: 12px;
+            border: 2px dashed currentColor;
+            border-radius: 50% 45% 50% 35%;
+            transform: rotate(-18deg);
+        }
+
+        .tool-icon.lasso-select::after {
+            left: 16px;
+            top: 16px;
+            width: 7px;
+            height: 3px;
+            background: currentColor;
+            transform: rotate(36deg);
+            border-radius: 2px;
+        }
+
+        .tool-icon.empty::before {
+            left: 7px;
+            top: 11px;
+            width: 10px;
+            height: 2px;
+            background: #6c7086;
+            border-radius: 2px;
         }
 
         .quick-palette {
@@ -217,6 +504,254 @@
 
         .quick-palette-item.active {
             border-color: #a6e3a1;
+        }
+
+        .hex-palette {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0 10px;
+            min-width: max-content;
+        }
+
+        .hex-row {
+            display: flex;
+            gap: 2px;
+        }
+
+        .hex-row + .hex-row {
+            margin-top: -2px;
+        }
+
+        .hex-swatch {
+            --hex-color: #313244;
+            --hex-frame: transparent;
+            --hex-frame-width: 0px;
+            width: 14px;
+            height: 16px;
+            display: block;
+            flex: 0 0 auto;
+            appearance: none;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            position: relative;
+            z-index: 0;
+            overflow: visible;
+            background: transparent !important;
+            cursor: pointer;
+            outline: none;
+            box-shadow: none;
+        }
+
+        .hex-swatch::before,
+        .hex-swatch::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            clip-path: polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%);
+            pointer-events: none;
+        }
+
+        .hex-swatch::before {
+            background: var(--hex-color);
+            z-index: 1;
+        }
+
+        .hex-swatch::after {
+            inset: calc(var(--hex-frame-width) * -1);
+            background: var(--hex-frame);
+            opacity: 0;
+            z-index: 0;
+        }
+
+        .hex-swatch.active {
+            --hex-frame: #a6e3a1;
+            --hex-frame-width: 3px;
+        }
+
+        .hex-swatch:hover {
+            --hex-frame: #89b4fa;
+            --hex-frame-width: 3px;
+        }
+
+        .hex-swatch.active:hover {
+            --hex-frame: #a6e3a1;
+        }
+
+        .hex-swatch:focus,
+        .hex-swatch:focus-visible {
+            outline: none;
+            box-shadow: none;
+        }
+
+        .hex-swatch:focus-visible {
+            --hex-frame: #f9e2af;
+            --hex-frame-width: 3px;
+        }
+
+        .hex-swatch.active::after,
+        .hex-swatch:hover::after,
+        .hex-swatch:focus-visible::after {
+            opacity: 1;
+        }
+
+        .color-picker-icon {
+            position: relative;
+            display: inline-block;
+            width: 13px;
+            height: 13px;
+            top: 1px;
+            border-radius: 50%;
+            background: conic-gradient(#f38ba8, #f9e2af, #a6e3a1, #89dceb, #89b4fa, #cba6f7, #f38ba8);
+            box-shadow: inset 0 0 0 2px #11111b;
+        }
+
+        .color-picker-window {
+            position: fixed;
+            left: 80px;
+            top: 80px;
+            z-index: 1001;
+            display: none;
+            width: min(620px, calc(100vw - 24px));
+            max-height: calc(100vh - 32px);
+            overflow: hidden;
+            background: #1e1e2e;
+            border: 1px solid #6c7086;
+            border-radius: 8px;
+            color: #cdd6f4;
+            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.48);
+        }
+
+        .color-picker-window.visible {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .color-picker-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex: 0 0 auto;
+            padding: 8px 10px;
+            background: #45475a;
+            border-bottom: 1px solid #6c7086;
+            cursor: move;
+            font-size: 12px;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .color-picker-close {
+            width: 24px;
+            height: 22px;
+            padding: 0;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .color-picker-body {
+            overflow: auto;
+            padding: 14px;
+            scrollbar-width: thin;
+            scrollbar-color: #45475a #1e1e2e;
+        }
+
+        .color-picker-window .hex-palette {
+            padding: 12px 0 18px;
+        }
+
+        .color-picker-window .hex-row {
+            gap: 4px;
+        }
+
+        .color-picker-window .hex-row + .hex-row {
+            margin-top: -4px;
+        }
+
+        .color-picker-window .hex-swatch {
+            width: 28px;
+            height: 32px;
+        }
+
+        .color-picker-slots {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0 2px;
+            border-top: 1px solid #45475a;
+            min-width: max-content;
+        }
+
+        .picker-slot {
+            --hex-color: #11111b;
+            --hex-frame: #6c7086;
+            --hex-frame-width: 2px;
+        }
+
+        .picker-slot::after {
+            opacity: 1;
+        }
+
+        .picker-slot.selected {
+            --hex-frame: #89b4fa;
+            --hex-frame-width: 3px;
+        }
+
+        .picker-slot.filled {
+            --hex-frame: transparent;
+            --hex-frame-width: 0px;
+        }
+
+        .picker-slot.filled::after {
+            opacity: 0;
+        }
+
+        .picker-slot.filled.selected {
+            --hex-frame: #89b4fa;
+            --hex-frame-width: 3px;
+        }
+
+        .picker-slot.filled.selected::after {
+            opacity: 1;
+        }
+
+        .bin-icon {
+            position: relative;
+            display: inline-block;
+            width: 12px;
+            height: 11px;
+            top: 3px;
+            border: 2px solid currentColor;
+            border-top: 0;
+            border-radius: 0 0 2px 2px;
+            box-sizing: border-box;
+        }
+
+        .bin-icon::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: -5px;
+            width: 14px;
+            height: 2px;
+            background: currentColor;
+            border-radius: 2px;
+            transform: translateX(-50%);
+        }
+
+        .bin-icon::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: -8px;
+            width: 6px;
+            height: 2px;
+            background: currentColor;
+            border-radius: 2px;
+            transform: translateX(-50%);
         }
 
         .empty-sidebar-note {
@@ -269,6 +804,18 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .sidebar-icon-btn.is-disabled,
+        .sidebar-icon-btn.is-disabled:hover {
+            background-color: #45475a;
+            color: #6c7086;
+            cursor: not-allowed;
+        }
+
+        .sidebar-icon-btn.is-disabled .color-picker-icon {
+            opacity: 0.45;
+            filter: saturate(0.45);
         }
 
         .layer-btn.active {
@@ -560,6 +1107,85 @@
             pointer-events: none; 
         }
 
+        .shape-selection-box {
+            position: absolute;
+            display: none;
+            border: 2px dashed #11111b;
+            background: rgba(255, 255, 255, 0.04);
+            pointer-events: auto;
+            cursor: move;
+            z-index: 4;
+        }
+
+        .shape-selection-box.visible {
+            display: block;
+        }
+
+        .shape-selection-box.selection-mode .shape-selection-handle {
+            display: none;
+        }
+
+        .shape-selection-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #f5f5f5;
+            border: 1px solid #11111b;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+        }
+
+        .shape-selection-handle[data-handle="nw"] {
+            left: -5px;
+            top: -5px;
+            cursor: nwse-resize;
+        }
+
+        .shape-selection-handle[data-handle="n"] {
+            left: 50%;
+            top: -5px;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        .shape-selection-handle[data-handle="ne"] {
+            right: -5px;
+            top: -5px;
+            cursor: nesw-resize;
+        }
+
+        .shape-selection-handle[data-handle="e"] {
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+
+        .shape-selection-handle[data-handle="se"] {
+            right: -5px;
+            bottom: -5px;
+            cursor: nwse-resize;
+        }
+
+        .shape-selection-handle[data-handle="s"] {
+            left: 50%;
+            bottom: -5px;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+
+        .shape-selection-handle[data-handle="sw"] {
+            left: -5px;
+            bottom: -5px;
+            cursor: nesw-resize;
+        }
+
+        .shape-selection-handle[data-handle="w"] {
+            left: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+
         .cursor-selection-frame {
             position: absolute;
             display: none;
@@ -763,6 +1389,10 @@
         body[data-palette-mode="carpet"] #supportBlockSelect {
             display: none;
         }
+
+        body[data-palette-mode="carpet"] .tool-controls-row {
+            grid-template-columns: auto 60px;
+        }
         .palette-panel {
             display: flex;
             flex-direction: column;
@@ -846,7 +1476,7 @@
 
         .instant-tooltip {
             position: fixed;
-            z-index: 1000;
+            z-index: 3000;
             max-width: 260px;
             padding: 6px 8px;
             border-radius: 5px;
@@ -971,12 +1601,59 @@
             <section class="sidebar-section custom-palette-section" id="customPaletteSection">
                 <div class="sidebar-header">
                     <span>Custom Palette</span>
-                    <div class="sidebar-header-actions">
+                    <div class="sidebar-header-actions custom-palette-actions">
+                        <button id="openColorPickerBtn" class="sidebar-icon-btn" type="button" data-tooltip="Open color picker"><span class="color-picker-icon"></span></button>
+                        <button id="deleteQuickPaletteBtn" class="sidebar-icon-btn" type="button" data-tooltip="Delete active custom color"><span class="bin-icon"></span></button>
                         <button id="clearQuickPaletteBtn" class="sidebar-icon-btn" type="button" data-tooltip="Clear custom palette">C</button>
                     </div>
                 </div>
                 <div class="sidebar-body">
                     <div class="quick-palette" id="quickPalette" data-tooltip="Drag colors or manual shades here from the main palette"></div>
+                </div>
+            </section>
+            <section class="sidebar-section tool-sidebar" id="toolSidebarSection">
+                <div class="sidebar-header">
+                    <span>Tools</span>
+                </div>
+                <div class="sidebar-body">
+                    <div class="tool-group" data-tooltip="Hold T and scroll to switch tools">
+                        <select id="toolSelect" class="tool-select-hidden" aria-label="Tool">
+                            <option value="brush">Brush</option>
+                            <option value="line">Line</option>
+                            <option value="rectangle">Rectangle</option>
+                            <option value="circle">Circle</option>
+                            <option value="curve">Curve</option>
+                            <option value="bucket">Bucket</option>
+                            <option value="picker">Color Selector</option>
+                            <option value="text">Text</option>
+                            <option value="rect-select">Rectangle Selection</option>
+                            <option value="lasso-select">Lasso Selection</option>
+                        </select>
+                        <div class="tool-icon-grid" id="toolIconGrid" aria-label="Tools">
+                            <button class="tool-icon-btn" type="button" data-tool="brush" data-tooltip="Brush"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><path class="bold" d="M4.5 18.7 16.4 6.8l2.8 2.8L7.3 21.5H4.5Z"/><path class="thin" d="M14.8 8.4l2.8 2.8M16.7 6.5l1.8-1.8 2.8 2.8-1.8 1.8"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="line" data-tooltip="Line"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><path class="bold" d="M5 19 19 5"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="rectangle" data-tooltip="Rectangle"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><rect class="bold" x="4" y="6" width="16" height="12"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="circle" data-tooltip="Circle / Ellipse"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><ellipse class="bold" cx="12" cy="12" rx="8.5" ry="6.7"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="curve" data-tooltip="Curve"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><path class="bold" d="M15.5 4.5c5 3.7-4.8 5.5-1.2 9.2 3.6 3.7-4.1 5.8-8.3 4.5"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="bucket" data-tooltip="Bucket"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><path class="bold" d="M5 9.5 11.5 4 19.5 11 12 17.5 4.5 12Z"/><path class="thin" d="M8.5 7.2 16 14"/><path d="M18.4 18.3c1.6 1.9 3.4.1 1.9-1.8L19.3 15l-1.1 1.5c-.5.7-.5 1.2.2 1.8Z"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="picker" data-tooltip="Color Selector"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><path class="bold" d="M15 3.5 20.5 9 17.5 12 12 6.5Z"/><path class="bold" d="M13 8 5.5 15.5 4 20l4.5-1.5L16 11"/><path class="fill" d="M5.2 19.8a3.2 3.2 0 0 0 4.6-1.2H6Z"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="text" data-tooltip="Text"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><path class="bold" d="M5 5h14M12 5v15M9 20h6"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="rect-select" data-tooltip="Rectangle Selection"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><rect class="dash" x="4" y="6" width="16" height="12"/></svg></button>
+                            <button class="tool-icon-btn" type="button" data-tool="lasso-select" data-tooltip="Lasso Selection"><svg class="tool-svg" viewBox="0 0 24 24" aria-hidden="true"><path class="loose-dash" d="M4.4 12.7c.2-4.5 4.3-7.9 8.4-6.7 2.4.7 2.7 2.5 5.1 3.2 3.2.9 3.2 5.6-.2 7.4-2.5 1.3-5.7-.1-8.1.9-2.8 1.2-5.4-.8-5.2-4.8Z"/></svg></button>
+                            <button class="tool-icon-btn tool-placeholder" type="button" disabled aria-hidden="true" tabindex="-1"><span class="tool-icon empty"></span></button>
+                            <button class="tool-icon-btn tool-placeholder" type="button" disabled aria-hidden="true" tabindex="-1"><span class="tool-icon empty"></span></button>
+                        </div>
+                        <div class="tool-controls-row">
+                            <label class="tool-control">
+                                <span class="tool-control-text">Size:</span>
+                                <input type="number" id="brushSize" value="1" min="1" max="20">
+                            </label>
+                            <label class="tool-control" id="supportBlockLabel" data-tooltip="Support blocks are generated only when a placed block requires support">
+                                <span class="tool-control-text">Support:</span>
+                                <select id="supportBlockSelect" data-tooltip="Support blocks are generated only when a placed block requires support"></select>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </section>
             <section class="sidebar-section layers-section" id="layersSection">
@@ -993,35 +1670,22 @@
                     <div class="layers-list" id="layersList"></div>
                 </div>
             </section>
-            <section class="sidebar-section tool-sidebar" id="toolSidebarSection">
-                <div class="sidebar-header">
-                    <span>Tools</span>
-                </div>
-                <div class="sidebar-body">
-                    <div class="tool-group" data-tooltip="Hold T and scroll to switch tools">
-                        <label>Tool:</label>
-                        <select id="toolSelect">
-                            <option value="brush">Brush</option>
-                            <option value="line">Line</option>
-                            <option value="bucket">Bucket</option>
-                            <option value="picker">Color Selector</option>
-                            <option value="text">Text</option>
-                        </select>
-                        
-                        <label>Size:</label>
-                        <input type="number" id="brushSize" value="1" min="1" max="20">
-
-                        <label id="supportBlockLabel" data-tooltip="Support blocks are generated only when a placed block requires support">Support:</label>
-                        <select id="supportBlockSelect" data-tooltip="Support blocks are generated only when a placed block requires support"></select>
-                    </div>
-                </div>
-            </section>
         </div>
         <div class="canvas-column">
             <div class="canvas-container" id="canvasContainer">
                 <div class="canvas-wrapper">
                     <canvas id="mapCanvas"></canvas>
                     <canvas id="previewCanvas"></canvas>
+                    <div class="shape-selection-box" id="shapeSelectionBox" aria-hidden="true">
+                        <div class="shape-selection-handle" data-handle="nw"></div>
+                        <div class="shape-selection-handle" data-handle="n"></div>
+                        <div class="shape-selection-handle" data-handle="ne"></div>
+                        <div class="shape-selection-handle" data-handle="e"></div>
+                        <div class="shape-selection-handle" data-handle="se"></div>
+                        <div class="shape-selection-handle" data-handle="s"></div>
+                        <div class="shape-selection-handle" data-handle="sw"></div>
+                        <div class="shape-selection-handle" data-handle="w"></div>
+                    </div>
                     <div class="cursor-selection-frame" id="cursorSelectionFrame"></div>
                 </div>
                 <div class="tool-scroll-tooltip" id="toolScrollTooltip" role="status"></div>
@@ -1061,6 +1725,17 @@
             </div>
             <div class="palette-status" id="paletteImportStatus"></div>
             <div class="palette" id="paletteContainer"></div>
+        </div>
+    </div>
+
+    <div class="color-picker-window" id="colorPickerWindow">
+        <div class="color-picker-title" id="colorPickerDragHandle">
+            <span id="colorPickerTitle">Color Picker</span>
+            <button id="closeColorPickerBtn" class="color-picker-close" type="button" data-tooltip="Close color picker">X</button>
+        </div>
+        <div class="color-picker-body">
+            <div class="hex-palette" id="hexPalette" data-tooltip="All Minecraft map colors and shadings"></div>
+            <div class="color-picker-slots" id="colorPickerSlots" data-tooltip="Pick an empty hex slot, then choose a color above"></div>
         </div>
     </div>
 
@@ -1733,6 +2408,10 @@
             return notes.length ? `${baseName} (${notes.join(", ")})` : baseName;
         }
 
+        function blockDropdownDisplayName(block) {
+            return titleWords(block.name.replace(/^minecraft:/, ""));
+        }
+
         const MAP_COLOR_DATABASE = MAP_COLOR_ROWS.map(row => ({
             id: row.id,
             mapartId: row.mapartId,
@@ -1890,7 +2569,11 @@
             normal: "Normal",
             light: "Light"
         };
+        const HEX_PALETTE_ROW_LENGTHS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 15, 14, 13, 12, 11, 10];
+        const FULLBLOCK_HEX_PALETTE_ROW_LENGTHS = [5, 6, 7, 8, 9, 8, 7, 6, 5];
+        const COLOR_PICKER_SLOT_ROW_LENGTHS = [14, 15, 16, 17, 16, 15, 14];
         const QUICK_PALETTE_STORAGE_KEY = "nbtMapartEditor.quickPalette.v1";
+        const DEFAULT_MAPART_PRESET = "0R1R2R3R4Q5Q6Q7Q8R9QaQcRdQeQfQgQhQiQjQkQlQmQnQoQpQqQrQsQtQuQvQwQxRyQzQ10Q11Q12Q13Q14Q15Q16Q17Q18Q19Q1aQ1bQ1cQ1dQ1eQ1fQ1gS1hQ1iQ1jS1kQ1lQ1mQ1nQ1oR";
 
         MAP_COLOR_DATABASE.forEach(color => {
             COLORS_BY_ID.set(color.id, color);
@@ -1904,6 +2587,7 @@
                 }
             });
         });
+        applyDefaultBlockSelections();
 
         let loadedFiles = []; 
         let mapWidth = 0, mapHeight = 0;
@@ -1917,6 +2601,10 @@
         let selectedTone = "normal";
         let paletteDropdownsLocked = false;
         let quickPaletteItems = [];
+        let colorPickerSlots = new Array(COLOR_PICKER_SLOT_ROW_LENGTHS.reduce((sum, count) => sum + count, 0)).fill(null);
+        let selectedColorPickerSlotIndex = 0;
+        let colorPickerPosition = null;
+        let activeColorPickerDrag = null;
         let editorLayers = [];
         let activeLayerId = null;
         let nextLayerId = 1;
@@ -1937,11 +2625,14 @@
         let textToolPopupPosition = null;
         let textToolPopupWasDragged = false;
         let activeTextToolPopupDrag = null;
+        let paletteDragActive = false;
+        let paletteDragScrollLock = null;
         
         // Input States
         let isDrawing = false;
         let isPanning = false;
         let hasDrawnInCurrentStroke = false;
+        let savedUndoInCurrentStroke = false;
         
         // Tool States
         let activeTool = 'brush';
@@ -1950,6 +2641,15 @@
         let lastMouseZ = -1;
         let lineStartX = -1;
         let lineStartZ = -1;
+        let arcFlipSide = false;
+        let activeShapeDraft = null;
+        let activeShapeInteraction = null;
+        let activeCurveDraft = null;
+        let activeSelection = null;
+        let activeSelectionInteraction = null;
+        let selectionClipboard = null;
+        let lassoPath = [];
+        let pendingShapeStart = null;
         let previewSnapshot = null;
         
         // Panning coordinates
@@ -1968,7 +2668,9 @@
         const previewCanvas = document.getElementById('previewCanvas');
         const previewCtx = previewCanvas.getContext('2d');
         const cursorSelectionFrame = document.getElementById('cursorSelectionFrame');
+        const shapeSelectionBox = document.getElementById('shapeSelectionBox');
         const toolSelect = document.getElementById('toolSelect');
+        const toolIconGrid = document.getElementById('toolIconGrid');
         const canvasContainer = document.getElementById('canvasContainer');
         const toolGroup = document.querySelector('.tool-group');
         const hotbarArea = document.querySelector('.hotbar-area');
@@ -1978,7 +2680,15 @@
         const hotbarSlotsElement = document.getElementById('hotbarSlots');
         const selectedBlockPreview = document.getElementById('selectedBlockPreview');
         const selectedBlockFill = document.getElementById('selectedBlockFill');
+        const openColorPickerBtn = document.getElementById('openColorPickerBtn');
+        const colorPickerWindow = document.getElementById('colorPickerWindow');
+        const colorPickerDragHandle = document.getElementById('colorPickerDragHandle');
+        const colorPickerTitle = document.getElementById('colorPickerTitle');
+        const closeColorPickerBtn = document.getElementById('closeColorPickerBtn');
+        const colorPickerSlotsElement = document.getElementById('colorPickerSlots');
         const quickPaletteElement = document.getElementById('quickPalette');
+        const hexPaletteElement = document.getElementById('hexPalette');
+        const deleteQuickPaletteBtn = document.getElementById('deleteQuickPaletteBtn');
         const clearQuickPaletteBtn = document.getElementById('clearQuickPaletteBtn');
         const layersListElement = document.getElementById('layersList');
         const addLayerBtn = document.getElementById('addLayerBtn');
@@ -2003,6 +2713,18 @@
         const textToolCancelBtn = document.getElementById('textToolCancelBtn');
 
         function setActiveTool(toolValue, rememberPrevious = true) {
+            if (toolValue !== activeTool) {
+                clearPendingShapeStart();
+            }
+            if (activeSelection && toolValue !== activeTool) {
+                commitActiveSelection();
+            }
+            if (activeCurveDraft && toolValue !== activeTool) {
+                commitActiveCurveDraft();
+            }
+            if (activeShapeDraft && toolValue !== activeTool) {
+                commitActiveShapeDraft();
+            }
             if (rememberPrevious && toolValue === 'picker' && activeTool !== 'picker') {
                 previousToolBeforePicker = activeTool;
             }
@@ -2011,6 +2733,7 @@
             }
             activeTool = toolValue;
             toolSelect.value = toolValue;
+            updateToolIconButtons();
             if (toolValue === 'text') {
                 const anchor = textToolAnchor || defaultTextToolAnchor();
                 showTextToolPopup(anchor.x, anchor.z);
@@ -2026,19 +2749,38 @@
             setActiveTool(restoredTool, false);
         }
 
+        function updateToolIconButtons() {
+            if (!toolIconGrid) return;
+            toolIconGrid.querySelectorAll("[data-tool]").forEach(button => {
+                button.classList.toggle("active", button.dataset.tool === activeTool);
+            });
+        }
+
         toolSelect.addEventListener('change', (e) => {
             setActiveTool(e.target.value);
+        });
+
+        toolIconGrid.addEventListener('click', event => {
+            const button = event.target.closest("[data-tool]");
+            if (!button || button.disabled) return;
+            setActiveTool(button.dataset.tool);
         });
 
         document.getElementById('brushSize').addEventListener('input', () => {
             updateCursorPreview(lastMouseX, lastMouseZ);
         });
 
+        updateToolIconButtons();
+
         textToolInput.addEventListener('input', refreshTextToolPreview);
         textToolSize.addEventListener('change', refreshTextToolPreview);
         textToolPlaceBtn.addEventListener('click', placeTextToolText);
         textToolCancelBtn.addEventListener('click', () => hideTextToolPopup());
         textToolDragHandle.addEventListener('pointerdown', startTextToolPopupDrag);
+        shapeSelectionBox.addEventListener('mousedown', startSelectionBoxInteraction);
+        openColorPickerBtn.addEventListener('click', showColorPickerWindow);
+        closeColorPickerBtn.addEventListener('click', hideColorPickerWindow);
+        colorPickerDragHandle.addEventListener('pointerdown', startColorPickerDrag);
         textToolPopup.addEventListener('keydown', (event) => {
             if (event.key === "Enter") {
                 event.preventDefault();
@@ -2050,10 +2792,14 @@
         });
         ["mousedown", "mouseup", "click", "dblclick", "contextmenu", "pointerdown", "pointerup", "wheel"].forEach(type => {
             textToolPopup.addEventListener(type, event => event.stopPropagation(), { passive: type !== "wheel" });
+            colorPickerWindow.addEventListener(type, event => event.stopPropagation(), { passive: type !== "wheel" });
         });
         document.addEventListener('pointermove', moveTextToolPopupDrag, true);
         document.addEventListener('pointerup', finishTextToolPopupDrag, true);
         document.addEventListener('pointercancel', finishTextToolPopupDrag, true);
+        document.addEventListener('pointermove', moveColorPickerDrag, true);
+        document.addEventListener('pointerup', finishColorPickerDrag, true);
+        document.addEventListener('pointercancel', finishColorPickerDrag, true);
 
         function moveInstantTooltip(event) {
             if (!instantTooltip || !instantTooltip.classList.contains('visible')) return;
@@ -2170,6 +2916,25 @@
             return false;
         }
 
+        function handleSelectionClipboardHotkey(event) {
+            if (!event.ctrlKey || event.altKey || event.metaKey || shouldIgnoreHotbarKey(event.target)) return false;
+
+            const key = event.key.toLowerCase();
+            if (key === "c") {
+                event.preventDefault();
+                copyActiveSelectionToClipboard();
+                return true;
+            }
+
+            if (key === "v") {
+                event.preventDefault();
+                pasteSelectionClipboard();
+                return true;
+            }
+
+            return false;
+        }
+
         function toggleFullscreenHudVisibility() {
             if (!fullscreenHudOverlay) return;
             fullscreenHudVisible = !fullscreenHudVisible;
@@ -2194,6 +2959,7 @@
         });
 
         document.addEventListener('keydown', (event) => {
+            if (handleSelectionClipboardHotkey(event)) return;
             if (handleUndoRedoHotkey(event)) return;
 
             if (isCanvasFullscreen() && event.key && event.key.toLowerCase() === "h" && !shouldIgnoreHotbarKey(event.target)) {
@@ -2270,6 +3036,49 @@
             return manualShadingAvailable() && shadingMode === "manual";
         }
 
+        function colorPickerAvailable() {
+            return loadedFiles.length > 0 && paletteMode !== "carpet";
+        }
+
+        function colorPickerHiddenForCurrentMode() {
+            return loadedFiles.length > 0 && paletteMode === "carpet";
+        }
+
+        function colorPickerToneList() {
+            return paletteMode === "staircased" ? MAP_TONES : ["normal"];
+        }
+
+        function colorPickerRowLengths(entryCount) {
+            const baseRows = paletteMode === "staircased"
+                ? HEX_PALETTE_ROW_LENGTHS
+                : FULLBLOCK_HEX_PALETTE_ROW_LENGTHS;
+            const rows = baseRows.slice();
+            let total = rows.reduce((sum, count) => sum + count, 0);
+            while (total < entryCount) {
+                const next = Math.min(baseRows[baseRows.length - 1], entryCount - total);
+                rows.push(next);
+                total += next;
+            }
+            return rows;
+        }
+
+        function updateColorPickerButtonState() {
+            if (!openColorPickerBtn) return;
+
+            const hidden = colorPickerHiddenForCurrentMode();
+            const available = colorPickerAvailable();
+            openColorPickerBtn.hidden = hidden;
+            openColorPickerBtn.classList.toggle("is-disabled", !available && !hidden);
+            openColorPickerBtn.setAttribute("aria-disabled", available ? "false" : "true");
+            openColorPickerBtn.dataset.tooltip = loadedFiles.length === 0
+                ? "Import NBT first"
+                : available
+                    ? (paletteMode === "staircased" ? "Open staircased color picker" : "Open fullblock color picker")
+                    : "Color picker is not available for carpet mode";
+
+            if (hidden || !available) hideColorPickerWindow();
+        }
+
         function normalizeTone(tone) {
             return MAP_TONES.includes(tone) ? tone : "normal";
         }
@@ -2317,6 +3126,32 @@
             return "FF" + rgb.map(channel =>
                 Math.max(0, Math.min(255, channel)).toString(16).padStart(2, "0").toUpperCase()
             ).join("");
+        }
+
+        function rgbToHsl(rgb) {
+            const r = rgb[0] / 255;
+            const g = rgb[1] / 255;
+            const b = rgb[2] / 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h = 0;
+            let s = 0;
+            const l = (max + min) / 2;
+
+            if (max !== min) {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                if (max === r) {
+                    h = (g - b) / d + (g < b ? 6 : 0);
+                } else if (max === g) {
+                    h = (b - r) / d + 2;
+                } else {
+                    h = (r - g) / d + 4;
+                }
+                h /= 6;
+            }
+
+            return { h, s, l };
         }
 
         function ensureSelectedColorForMode() {
@@ -2408,6 +3243,53 @@
             }
         }
 
+        function quickPaletteItemsMatch(a, b) {
+            return !!(a && b &&
+                a.colorId === b.colorId &&
+                a.blockKey === b.blockKey &&
+                (a.tone || null) === (b.tone || null));
+        }
+
+        function quickPaletteIndexOf(item) {
+            const valid = validPaletteItem(item);
+            if (!valid) return -1;
+            return quickPaletteItems.findIndex(existing => quickPaletteItemsMatch(existing, valid));
+        }
+
+        function quickPaletteItemIsActive(item) {
+            const info = layerCellInfo(item);
+            return !!(info &&
+                selectedColor === info.color &&
+                selectedBlockForColor(info.color).key === info.block.key &&
+                (!manualShadingActive() || selectedTone === (info.tone || "normal")));
+        }
+
+        function hexPaletteItemIsActive(item) {
+            const info = layerCellInfo(item);
+            const activeTone = paletteMode === "staircased" ? selectedTone : selectedDisplayTone();
+            return !!(info &&
+                selectedColor === info.color &&
+                selectedBlockForColor(info.color).key === info.block.key &&
+                activeTone === (info.tone || "normal"));
+        }
+
+        function activeQuickPaletteIndex() {
+            return quickPaletteItems.findIndex(quickPaletteItemIsActive);
+        }
+
+        function colorPickerSlotInfo(slot) {
+            return slot ? layerCellInfo(slot) : null;
+        }
+
+        function updateQuickPaletteButtons() {
+            if (deleteQuickPaletteBtn) {
+                deleteQuickPaletteBtn.disabled = activeQuickPaletteIndex() === -1;
+            }
+            if (clearQuickPaletteBtn) {
+                clearQuickPaletteBtn.disabled = quickPaletteItems.length === 0 && !colorPickerSlots.some(Boolean);
+            }
+        }
+
         function selectQuickPaletteItem(item) {
             const info = layerCellInfo(item);
             if (!info) return;
@@ -2420,26 +3302,164 @@
                 syncActiveHotbarSlot();
             }
             renderPaletteRows();
-            renderQuickPalette();
+            renderCustomPaletteViews();
             updateCursorPreview(lastMouseX, lastMouseZ);
         }
 
-        function addQuickPaletteItem(item, replaceIndex = null) {
+        function addQuickPaletteItem(item, replaceIndex = null, options = {}) {
+            const saveUndo = options.saveUndo !== false;
+            const dedupe = options.dedupe === true;
             const valid = validPaletteItem(item);
             if (!valid) return;
-            saveCurrentStateToUndo();
+            if (dedupe && replaceIndex === null) {
+                const existingIndex = quickPaletteIndexOf(valid);
+                if (existingIndex !== -1) {
+                    renderCustomPaletteViews();
+                    return;
+                }
+            }
+            if (saveUndo) saveCurrentStateToUndo();
             if (replaceIndex !== null && replaceIndex >= 0 && replaceIndex < quickPaletteItems.length) {
                 quickPaletteItems[replaceIndex] = valid;
             } else {
                 quickPaletteItems.push(valid);
             }
             saveQuickPalette();
-            renderQuickPalette();
+            renderCustomPaletteViews();
+        }
+
+        function syncQuickPaletteFromPickerSlot(previousItem, nextItem) {
+            const validNext = validPaletteItem(nextItem);
+            if (!validNext) return;
+
+            const previousIndex = previousItem ? quickPaletteIndexOf(previousItem) : -1;
+            const nextIndex = quickPaletteIndexOf(validNext);
+
+            if (previousIndex !== -1) {
+                if (nextIndex !== -1 && nextIndex !== previousIndex) {
+                    quickPaletteItems.splice(previousIndex, 1);
+                } else {
+                    quickPaletteItems[previousIndex] = validNext;
+                }
+            } else if (nextIndex === -1) {
+                quickPaletteItems.push(validNext);
+            }
+
+            saveQuickPalette();
+        }
+
+        function deleteActiveQuickPaletteItem() {
+            const index = activeQuickPaletteIndex();
+            if (index === -1) return;
+            const deletedItem = quickPaletteItems[index];
+            saveCurrentStateToUndo();
+            quickPaletteItems.splice(index, 1);
+            colorPickerSlots = colorPickerSlots.map(slot =>
+                quickPaletteItemsMatch(slot, deletedItem) ? null : slot
+            );
+            saveQuickPalette();
+            renderCustomPaletteViews();
+        }
+
+        function selectedColorPickerSlotValid() {
+            return selectedColorPickerSlotIndex >= 0 && selectedColorPickerSlotIndex < colorPickerSlots.length;
+        }
+
+        function nextEmptyColorPickerSlotIndex(startIndex = 0) {
+            if (colorPickerSlots.length === 0) return -1;
+            const normalizedStart = ((startIndex % colorPickerSlots.length) + colorPickerSlots.length) % colorPickerSlots.length;
+            for (let offset = 0; offset < colorPickerSlots.length; offset++) {
+                const index = (normalizedStart + offset) % colorPickerSlots.length;
+                if (!colorPickerSlots[index]) return index;
+            }
+            return -1;
+        }
+
+        function setSelectedColorPickerSlot(index) {
+            if (index < 0 || index >= colorPickerSlots.length) return;
+            selectedColorPickerSlotIndex = index;
+            const slot = colorPickerSlots[index];
+            if (slot) {
+                selectQuickPaletteItem(slot);
+            } else {
+                renderColorPickerSlots();
+            }
+        }
+
+        function assignColorPickerSlot(item) {
+            const valid = validPaletteItem(item);
+            if (!valid) return;
+            if (!selectedColorPickerSlotValid()) selectedColorPickerSlotIndex = 0;
+            const previousSlot = colorPickerSlots[selectedColorPickerSlotIndex];
+            saveCurrentStateToUndo();
+            colorPickerSlots[selectedColorPickerSlotIndex] = valid;
+            syncQuickPaletteFromPickerSlot(previousSlot, valid);
+            selectQuickPaletteItem(valid);
+        }
+
+        function assignNextColorPickerSlot(item) {
+            const valid = validPaletteItem(item);
+            if (!colorPickerAvailable()) return false;
+            if (!valid) return false;
+            if (!selectedColorPickerSlotValid()) selectedColorPickerSlotIndex = 0;
+
+            if (colorPickerSlots[selectedColorPickerSlotIndex]) {
+                const emptyIndex = nextEmptyColorPickerSlotIndex(selectedColorPickerSlotIndex + 1);
+                if (emptyIndex !== -1) selectedColorPickerSlotIndex = emptyIndex;
+            }
+
+            const targetIndex = selectedColorPickerSlotIndex;
+            const previousSlot = colorPickerSlots[targetIndex];
+            colorPickerSlots[targetIndex] = valid;
+            syncQuickPaletteFromPickerSlot(previousSlot, valid);
+            selectQuickPaletteItem(valid);
+
+            const nextIndex = nextEmptyColorPickerSlotIndex(targetIndex + 1);
+            selectedColorPickerSlotIndex = nextIndex !== -1 ? nextIndex : targetIndex;
+            renderCustomPaletteViews();
+            return true;
+        }
+
+        function clearColorPickerSlot(index) {
+            if (index < 0 || index >= colorPickerSlots.length || !colorPickerSlots[index]) return;
+            saveCurrentStateToUndo();
+            colorPickerSlots[index] = null;
+            selectedColorPickerSlotIndex = index;
+            renderCustomPaletteViews();
+        }
+
+        function beginPaletteDrag() {
+            paletteDragActive = true;
+            paletteDragScrollLock = {
+                left: canvasContainer.scrollLeft,
+                top: canvasContainer.scrollTop
+            };
+        }
+
+        function restorePaletteDragScroll() {
+            if (!paletteDragScrollLock) return;
+            canvasContainer.scrollLeft = paletteDragScrollLock.left;
+            canvasContainer.scrollTop = paletteDragScrollLock.top;
+        }
+
+        function endPaletteDrag() {
+            restorePaletteDragScroll();
+            paletteDragActive = false;
+            paletteDragScrollLock = null;
+        }
+
+        function handleCanvasPaletteDragEvent(event) {
+            if (!paletteDragActive && !dragHasPaletteItem(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = "none";
+            restorePaletteDragScroll();
         }
 
         function renderQuickPalette() {
             if (!quickPaletteElement) return;
             quickPaletteElement.innerHTML = "";
+            updateQuickPaletteButtons();
 
             if (quickPaletteItems.length === 0) {
                 const note = document.createElement("div");
@@ -2455,17 +3475,161 @@
                 const baseCell = cellAtGlobal(lastMouseX, lastMouseZ);
                 const button = document.createElement("button");
                 button.type = "button";
-                button.className = `quick-palette-item ${selectedColor === info.color && selectedBlockForColor(info.color).key === info.block.key && (!manualShadingActive() || selectedTone === (info.tone || "normal")) ? "active" : ""}`;
+                button.className = `quick-palette-item ${quickPaletteItemIsActive(item) ? "active" : ""}`;
                 button.style.backgroundColor = rgbToCss(colorForLayerCell(item, baseCell) || rgbForMapTone(info.color, "normal"));
                 button.dataset.tooltip = quickPaletteItemTooltip(item);
                 button.draggable = true;
                 button.addEventListener("click", () => selectQuickPaletteItem(item));
                 button.addEventListener("dragstart", event => {
+                    beginPaletteDrag();
+                    updateQuickPaletteButtons();
                     event.dataTransfer.setData("application/json", JSON.stringify(item));
+                    event.dataTransfer.setData("application/x-custom-palette-origin", "1");
                     event.dataTransfer.effectAllowed = "copyMove";
                 });
+                button.addEventListener("dragend", endPaletteDrag);
                 quickPaletteElement.appendChild(button);
             });
+        }
+
+        function hexPaletteEntries() {
+            const sourceColors = usesBlockPaletteMode() ? MAP_COLOR_DATABASE : paletteColorsForMode();
+            const orderedColors = sourceColors
+                .map(color => {
+                    const hsl = rgbToHsl(rgbForMapTone(color, "normal"));
+                    return {
+                        color,
+                        hsl,
+                        gray: hsl.s < 0.08
+                    };
+                })
+                .sort((a, b) => {
+                    if (a.gray !== b.gray) return a.gray ? 1 : -1;
+                    if (Math.abs(a.hsl.h - b.hsl.h) > 0.001) return a.hsl.h - b.hsl.h;
+                    if (Math.abs(a.hsl.s - b.hsl.s) > 0.001) return b.hsl.s - a.hsl.s;
+                    return a.hsl.l - b.hsl.l;
+                });
+
+            const entries = [];
+
+            for (const { color } of orderedColors) {
+                const block = selectedBlockForColor(color);
+                if (!block) continue;
+
+                for (const tone of colorPickerToneList()) {
+                    const rgb = rgbForMapTone(color, tone);
+                    entries.push({
+                        item: { colorId: color.id, blockKey: block.key, tone: paletteMode === "staircased" ? tone : null },
+                        rgb,
+                        tone,
+                        color,
+                        block
+                    });
+                }
+            }
+
+            return entries;
+        }
+
+        function renderHexPalette() {
+            if (!hexPaletteElement) return;
+            hexPaletteElement.innerHTML = "";
+            if (!colorPickerAvailable()) return;
+
+            const entries = hexPaletteEntries();
+            const rowLengths = colorPickerRowLengths(entries.length);
+            let cursor = 0;
+
+            for (let rowIndex = 0; rowIndex < rowLengths.length && cursor < entries.length; rowIndex++) {
+                const row = document.createElement("div");
+                row.className = "hex-row";
+
+                const rowLength = rowLengths[rowIndex];
+                for (let i = 0; i < rowLength && cursor < entries.length; i++, cursor++) {
+                    const entry = entries[cursor];
+                    const info = layerCellInfo(entry.item);
+                    if (!info) continue;
+
+                    const swatch = document.createElement("button");
+                    swatch.type = "button";
+                    swatch.className = `hex-swatch ${hexPaletteItemIsActive(entry.item) ? "active" : ""}`;
+                    swatch.style.setProperty("--hex-color", rgbToCss(entry.rgb));
+                    swatch.dataset.tooltip = quickPaletteItemTooltip(entry.item);
+                    swatch.draggable = true;
+                    swatch.addEventListener("click", () => assignColorPickerSlot(entry.item));
+                    swatch.addEventListener("dragstart", event => {
+                        beginPaletteDrag();
+                        event.dataTransfer.setData("application/json", JSON.stringify(entry.item));
+                        event.dataTransfer.setData("application/x-hex-palette-origin", "1");
+                        event.dataTransfer.effectAllowed = "copy";
+                    });
+                    swatch.addEventListener("dragend", endPaletteDrag);
+                    row.appendChild(swatch);
+                }
+
+                hexPaletteElement.appendChild(row);
+            }
+        }
+
+        function renderColorPickerSlots() {
+            if (!colorPickerSlotsElement) return;
+            colorPickerSlotsElement.innerHTML = "";
+            if (!colorPickerAvailable()) return;
+            if (!selectedColorPickerSlotValid()) selectedColorPickerSlotIndex = 0;
+
+            let cursor = 0;
+            for (const rowLength of COLOR_PICKER_SLOT_ROW_LENGTHS) {
+                const row = document.createElement("div");
+                row.className = "hex-row";
+
+                for (let i = 0; i < rowLength && cursor < colorPickerSlots.length; i++, cursor++) {
+                    const slot = colorPickerSlots[cursor];
+                    const info = colorPickerSlotInfo(slot);
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = `hex-swatch picker-slot ${info ? "filled" : ""} ${cursor === selectedColorPickerSlotIndex ? "selected" : ""}`;
+                    if (info) {
+                        button.style.setProperty("--hex-color", rgbToCss(colorForLayerCell(slot) || rgbForMapTone(info.color, "normal")));
+                        button.dataset.tooltip = quickPaletteItemTooltip(slot);
+                        button.draggable = true;
+                        button.addEventListener("dragstart", event => {
+                            beginPaletteDrag();
+                            event.dataTransfer.setData("application/json", JSON.stringify(slot));
+                            event.dataTransfer.effectAllowed = "copy";
+                        });
+                        button.addEventListener("dragend", endPaletteDrag);
+                    } else {
+                        button.dataset.tooltip = "Empty color slot";
+                    }
+                    const slotIndex = cursor;
+                    button.addEventListener("click", () => setSelectedColorPickerSlot(slotIndex));
+                    button.addEventListener("contextmenu", event => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        clearColorPickerSlot(slotIndex);
+                    });
+                    row.appendChild(button);
+                }
+
+                colorPickerSlotsElement.appendChild(row);
+            }
+        }
+
+        function renderCustomPaletteViews() {
+            updateColorPickerButtonState();
+            if (colorPickerTitle) {
+                colorPickerTitle.textContent = paletteMode === "staircased"
+                    ? "Staircased Color Picker"
+                    : "Fullblock Color Picker";
+            }
+            if (hexPaletteElement) {
+                hexPaletteElement.dataset.tooltip = paletteMode === "staircased"
+                    ? "All Minecraft map colors and shadings"
+                    : "Fullblock base map colors";
+            }
+            renderQuickPalette();
+            renderHexPalette();
+            renderColorPickerSlots();
         }
 
         function parseDraggedPaletteItem(event) {
@@ -2480,6 +3644,14 @@
 
         function dragHasPaletteItem(event) {
             return !!(event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("application/json"));
+        }
+
+        function dragStartedFromQuickPalette(event) {
+            return !!(event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("application/x-custom-palette-origin"));
+        }
+
+        function dragStartedFromHexPalette(event) {
+            return !!(event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("application/x-hex-palette-origin"));
         }
 
         function createLayer(name, kind = "paint") {
@@ -2914,6 +4086,7 @@
                         swatch.dataset.tooltip = `${TONE_LABELS[tone]} shade`;
                         swatch.draggable = true;
                         swatch.addEventListener("dragstart", event => {
+                            beginPaletteDrag();
                             const block = selectedBlockForColor(color);
                             if (!block) return;
                             event.dataTransfer.setData("application/json", JSON.stringify({
@@ -2923,6 +4096,7 @@
                             }));
                             event.dataTransfer.effectAllowed = "copy";
                         });
+                        swatch.addEventListener("dragend", endPaletteDrag);
                         swatch.onclick = event => {
                             event.stopPropagation();
                             selectPaletteColor(color, tone);
@@ -2936,6 +4110,7 @@
                     swatch.style.backgroundColor = color.hex;
                     swatch.draggable = true;
                     swatch.addEventListener("dragstart", event => {
+                        beginPaletteDrag();
                         const block = selectedBlockForColor(color);
                         if (!block) return;
                         event.dataTransfer.setData("application/json", JSON.stringify({
@@ -2945,6 +4120,7 @@
                         }));
                         event.dataTransfer.effectAllowed = "copy";
                     });
+                    swatch.addEventListener("dragend", endPaletteDrag);
                     row.appendChild(swatch);
                 }
 
@@ -2959,7 +4135,7 @@
                     color.blocks.forEach(block => {
                         const option = document.createElement('option');
                         option.value = block.key;
-                        option.textContent = block.displayName + (block.supportRequired ? " *" : "");
+                        option.textContent = blockDropdownDisplayName(block);
                         select.appendChild(option);
                     });
                     select.value = selectedBlockForColor(color).key;
@@ -2974,7 +4150,7 @@
             });
             renderPaletteControls();
             renderHotbar();
-            renderQuickPalette();
+            renderCustomPaletteViews();
         }
 
         function setPaletteMode(mode, message = "", refreshPreview = true) {
@@ -2985,10 +4161,22 @@
             if (message) setPaletteStatus(message);
         }
 
-        function resetPaletteSelectionsToDefaults() {
+        function applyDefaultBlockSelections() {
             for (const color of MAP_COLOR_DATABASE) {
                 selectedBlockByColorId[color.id] = color.blocks[0].key;
             }
+
+            const selections = decodeMapartPreset(DEFAULT_MAPART_PRESET) || [];
+            selections.forEach(selection => {
+                const color = COLOR_BY_MAPART_ID.get(selection.mapartId);
+                if (!color) return;
+                const block = MAPART_BLOCK_BY_COLOR_AND_PRESET.get(`${selection.mapartId}:${selection.presetIndex}`);
+                selectedBlockByColorId[color.id] = block ? block.key : color.blocks[0].key;
+            });
+        }
+
+        function resetPaletteSelectionsToDefaults() {
+            applyDefaultBlockSelections();
             shadingMode = "auto";
             selectedTone = "normal";
             paletteDropdownsLocked = false;
@@ -3056,6 +4244,11 @@
 
         quickPaletteElement.addEventListener("dragover", event => {
             event.preventDefault();
+            if (dragStartedFromQuickPalette(event)) {
+                quickPaletteElement.classList.remove("drag-over");
+                event.dataTransfer.dropEffect = "none";
+                return;
+            }
             quickPaletteElement.classList.add("drag-over");
             event.dataTransfer.dropEffect = "copy";
         });
@@ -3069,19 +4262,35 @@
         quickPaletteElement.addEventListener("drop", event => {
             event.preventDefault();
             quickPaletteElement.classList.remove("drag-over");
+            if (dragStartedFromQuickPalette(event)) {
+                endPaletteDrag();
+                return;
+            }
             const item = parseDraggedPaletteItem(event);
             if (!item) return;
             const targetItem = event.target.closest(".quick-palette-item");
             const replaceIndex = targetItem ? Array.from(quickPaletteElement.children).indexOf(targetItem) : null;
-            addQuickPaletteItem(item, replaceIndex);
+            const fromHexPalette = dragStartedFromHexPalette(event);
+            if (fromHexPalette) {
+                saveCurrentStateToUndo();
+                addQuickPaletteItem(item, replaceIndex, { saveUndo: false });
+                assignNextColorPickerSlot(item);
+            } else {
+                addQuickPaletteItem(item, replaceIndex);
+            }
+            endPaletteDrag();
         });
 
+        deleteQuickPaletteBtn.addEventListener("click", deleteActiveQuickPaletteItem);
+
         clearQuickPaletteBtn.addEventListener("click", () => {
-            if (quickPaletteItems.length === 0) return;
+            if (quickPaletteItems.length === 0 && !colorPickerSlots.some(Boolean)) return;
             saveCurrentStateToUndo();
             quickPaletteItems = [];
+            colorPickerSlots.fill(null);
+            selectedColorPickerSlotIndex = 0;
             saveQuickPalette();
-            renderQuickPalette();
+            renderCustomPaletteViews();
         });
 
         addLayerBtn.addEventListener("click", addPaintLayer);
@@ -3498,6 +4707,7 @@
             document.getElementById('saveZipBtn').innerText = "Processing...";
             resetPaletteSelectionsToDefaults();
             loadedFiles = [];
+            updateColorPickerButtonState();
             mapWidth = 0;
             mapHeight = 0;
             gridMap = [];
@@ -4127,8 +5337,7 @@
             ctx.putImageData(imageData, 0, 0);
         }
 
-        function brushCellsAt(cx, cz) {
-            const size = parseInt(document.getElementById('brushSize').value) || 1;
+        function brushCellsAtSize(cx, cz, size) {
             const offsetStart = Math.floor(size / 2);
             const offsetEnd = size - offsetStart - 1; 
             const cells = [];
@@ -4143,6 +5352,10 @@
             }
 
             return cells;
+        }
+
+        function brushCellsAt(cx, cz) {
+            return brushCellsAtSize(cx, cz, currentBrushSize());
         }
 
         function applyBrush(cx, cz, updateCanvasDirectly) {
@@ -4335,6 +5548,97 @@
             }
         }
 
+        function clampColorPickerPosition(left, top) {
+            if (!colorPickerWindow) return { left, top };
+            const padding = 12;
+            const rect = colorPickerWindow.getBoundingClientRect();
+            const width = rect.width || colorPickerWindow.offsetWidth || 620;
+            const height = rect.height || colorPickerWindow.offsetHeight || 520;
+            const maxLeft = Math.max(padding, window.innerWidth - width - padding);
+            const maxTop = Math.max(padding, window.innerHeight - height - padding);
+            return {
+                left: Math.max(padding, Math.min(maxLeft, left)),
+                top: Math.max(padding, Math.min(maxTop, top))
+            };
+        }
+
+        function defaultColorPickerPosition() {
+            const canvasRect = canvasContainer.getBoundingClientRect();
+            const left = Math.max(12, canvasRect.left + 24);
+            const top = Math.max(12, canvasRect.top + 24);
+            return clampColorPickerPosition(left, top);
+        }
+
+        function positionColorPickerWindow() {
+            if (!colorPickerWindow) return;
+            if (!colorPickerPosition) {
+                colorPickerPosition = defaultColorPickerPosition();
+            } else {
+                colorPickerPosition = clampColorPickerPosition(colorPickerPosition.left, colorPickerPosition.top);
+            }
+            colorPickerWindow.style.left = `${colorPickerPosition.left}px`;
+            colorPickerWindow.style.top = `${colorPickerPosition.top}px`;
+        }
+
+        function showColorPickerWindow() {
+            updateColorPickerButtonState();
+            if (!colorPickerAvailable()) {
+                if (loadedFiles.length === 0) setPaletteStatus("Import NBT first.");
+                return;
+            }
+            colorPickerWindow.classList.add("visible");
+            positionColorPickerWindow();
+            renderCustomPaletteViews();
+        }
+
+        function hideColorPickerWindow() {
+            colorPickerWindow.classList.remove("visible");
+        }
+
+        function startColorPickerDrag(event) {
+            if (event.button !== 0 || event.target.closest("button")) return;
+            const rect = colorPickerWindow.getBoundingClientRect();
+            activeColorPickerDrag = {
+                pointerId: event.pointerId,
+                offsetX: event.clientX - rect.left,
+                offsetY: event.clientY - rect.top
+            };
+            try {
+                event.currentTarget.setPointerCapture(event.pointerId);
+            } catch (error) {
+                // Pointer capture is best-effort; document capture handles release.
+            }
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function moveColorPickerDrag(event) {
+            if (!activeColorPickerDrag) return;
+            colorPickerPosition = clampColorPickerPosition(
+                event.clientX - activeColorPickerDrag.offsetX,
+                event.clientY - activeColorPickerDrag.offsetY
+            );
+            positionColorPickerWindow();
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function finishColorPickerDrag(event) {
+            if (!activeColorPickerDrag) return;
+            if (colorPickerDragHandle && activeColorPickerDrag.pointerId !== undefined) {
+                try {
+                    colorPickerDragHandle.releasePointerCapture(activeColorPickerDrag.pointerId);
+                } catch (error) {
+                    // The browser may already have released it.
+                }
+            }
+            activeColorPickerDrag = null;
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }
+
         function refreshTextToolPreview() {
             if (!isTextToolPopupOpen() || !textToolAnchor) {
                 previewCtx.clearRect(0, 0, mapWidth, mapHeight);
@@ -4417,6 +5721,20 @@
                 syncActiveHotbarSlot();
             }
 
+            const pickedItem = {
+                colorId: pixel.color.id,
+                blockKey: pixel.block.key,
+                tone: manualShadingAvailable() ? normalizeTone(pixel.tone) : null
+            };
+
+            if (colorPickerAvailable()) {
+                saveCurrentStateToUndo();
+                addQuickPaletteItem(pickedItem, null, { dedupe: true, saveUndo: false });
+                assignNextColorPickerSlot(pickedItem);
+            } else {
+                addQuickPaletteItem(pickedItem, null, { dedupe: true });
+            }
+
             renderPaletteRows();
             updateCursorPreview(x, z);
             return true;
@@ -4471,58 +5789,960 @@
             return paintCells(cells, false);
         }
 
-        function drawLine(x0, y0, x1, y1, updateCanvasDirectly) {
+        function currentBrushSize() {
+            return parseInt(document.getElementById('brushSize').value, 10) || 1;
+        }
+
+        const SHAPE_START_MIN_DISTANCE = 3;
+
+        function isShapeTool(tool = activeTool) {
+            return tool === 'line' || tool === 'rectangle' || tool === 'circle' || tool === 'curve';
+        }
+
+        function isDeferredShapeTool(tool = activeTool) {
+            return tool === 'rectangle' || tool === 'circle' || tool === 'curve';
+        }
+
+        function isSelectionTool(tool = activeTool) {
+            return tool === 'rect-select' || tool === 'lasso-select';
+        }
+
+        function shapeDragDistance(x0, z0, x1, z1) {
+            return Math.hypot(x1 - x0, z1 - z0);
+        }
+
+        function shapeDragReachedMinimum(x0, z0, x1, z1) {
+            return shapeDragDistance(x0, z0, x1, z1) >= SHAPE_START_MIN_DISTANCE;
+        }
+
+        function beginPendingShapeStart(tool, x, z, event) {
+            pendingShapeStart = {
+                tool,
+                x,
+                z,
+                shiftKey: !!(event && event.shiftKey)
+            };
+        }
+
+        function startDeferredShapeStroke(event, x, z) {
+            if (!pendingShapeStart || pendingShapeStart.tool !== activeTool) return false;
+            if (!shapeDragReachedMinimum(pendingShapeStart.x, pendingShapeStart.z, x, z)) return false;
+
+            isDrawing = true;
+            hasDrawnInCurrentStroke = false;
+            savedUndoInCurrentStroke = false;
+            lineStartX = pendingShapeStart.x;
+            lineStartZ = pendingShapeStart.z;
+            arcFlipSide = !!(event && event.shiftKey);
+            pendingShapeStart = null;
+            return true;
+        }
+
+        function clearPendingShapeStart() {
+            pendingShapeStart = null;
+        }
+
+        function addShapePoint(points, seen, x, z) {
+            if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+            const px = Math.round(x);
+            const pz = Math.round(z);
+            const key = `${px},${pz}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            points.push({ x: px, z: pz });
+        }
+
+        function linePoints(x0, y0, x1, y1) {
             let dx = Math.abs(x1 - x0);
             let dy = Math.abs(y1 - y0);
             let sx = (x0 < x1) ? 1 : -1;
             let sy = (y0 < y1) ? 1 : -1;
             let err = dx - dy;
-            const cells = [];
+            const points = [];
+            const seen = new Set();
 
             while(true) {
-                cells.push(...brushCellsAt(x0, y0));
+                addShapePoint(points, seen, x0, y0);
                 if (x0 === x1 && y0 === y1) break;
                 let e2 = 2 * err;
                 if (e2 > -dy) { err -= dy; x0 += sx; }
                 if (e2 < dx) { err += dx; y0 += sy; }
             }
+
+            return points;
+        }
+
+        function rectanglePoints(x0, z0, x1, z1) {
+            const points = [];
+            const seen = new Set();
+            const left = Math.min(x0, x1);
+            const right = Math.max(x0, x1);
+            const top = Math.min(z0, z1);
+            const bottom = Math.max(z0, z1);
+
+            for (let x = left; x <= right; x++) {
+                addShapePoint(points, seen, x, top);
+                addShapePoint(points, seen, x, bottom);
+            }
+
+            for (let z = top + 1; z < bottom; z++) {
+                addShapePoint(points, seen, left, z);
+                addShapePoint(points, seen, right, z);
+            }
+
+            return points;
+        }
+
+        function circlePoints(x0, z0, x1, z1) {
+            const points = [];
+            const seen = new Set();
+            const left = Math.min(x0, x1);
+            const right = Math.max(x0, x1);
+            const top = Math.min(z0, z1);
+            const bottom = Math.max(z0, z1);
+            const width = right - left;
+            const height = bottom - top;
+
+            if (width === 0 && height === 0) {
+                addShapePoint(points, seen, x0, z0);
+                return points;
+            }
+
+            if (width === 0 || height === 0) {
+                return linePoints(x0, z0, x1, z1);
+            }
+
+            const centerX = (left + right) / 2;
+            const centerZ = (top + bottom) / 2;
+            const radiusX = width / 2;
+            const radiusZ = height / 2;
+            const circumference = Math.PI * (
+                3 * (radiusX + radiusZ) -
+                Math.sqrt((3 * radiusX + radiusZ) * (radiusX + 3 * radiusZ))
+            );
+            const samples = Math.max(24, Math.ceil(circumference * 4));
+
+            for (let i = 0; i < samples; i++) {
+                const angle = (Math.PI * 2 * i) / samples;
+                addShapePoint(
+                    points,
+                    seen,
+                    centerX + Math.cos(angle) * radiusX,
+                    centerZ + Math.sin(angle) * radiusZ
+                );
+            }
+
+            return points;
+        }
+
+        function curvePoints(x0, z0, x1, z1, c1x = x0, c1z = z0, c2x = x1, c2z = z1) {
+            const points = [];
+            const seen = new Set();
+            const dx = x1 - x0;
+            const dz = z1 - z0;
+            const distance = Math.hypot(dx, dz);
+            if (distance < 1 && Math.hypot(c2x - c1x, c2z - c1z) < 1) {
+                addShapePoint(points, seen, x0, z0);
+                return points;
+            }
+
+            const controlDistance = Math.hypot(c1x - x0, c1z - z0) + Math.hypot(c2x - x1, c2z - z1);
+            const samples = Math.max(24, Math.ceil((distance + controlDistance) * 4));
+
+            for (let i = 0; i <= samples; i++) {
+                const t = i / samples;
+                const inv = 1 - t;
+                addShapePoint(
+                    points,
+                    seen,
+                    inv * inv * inv * x0 + 3 * inv * inv * t * c1x + 3 * inv * t * t * c2x + t * t * t * x1,
+                    inv * inv * inv * z0 + 3 * inv * inv * t * c1z + 3 * inv * t * t * c2z + t * t * t * z1
+                );
+            }
+
+            return points;
+        }
+
+        function shapePointsForTool(tool, x0, z0, x1, z1, flipSide = false) {
+            if (tool === 'rectangle') return rectanglePoints(x0, z0, x1, z1);
+            if (tool === 'circle') return circlePoints(x0, z0, x1, z1);
+            return linePoints(x0, z0, x1, z1);
+        }
+
+        function shapePointsForDraft(draft) {
+            if (!draft) return [];
+            if (draft.tool === 'curve') {
+                return curvePoints(
+                    draft.x0,
+                    draft.z0,
+                    draft.x1,
+                    draft.z1,
+                    draft.c1x ?? draft.x0,
+                    draft.c1z ?? draft.z0,
+                    draft.c2x ?? draft.x1,
+                    draft.c2z ?? draft.z1
+                );
+            }
+            return shapePointsForTool(draft.tool, draft.x0, draft.z0, draft.x1, draft.z1, !!draft.flipSide);
+        }
+
+        function paintShapePoints(points, updateCanvasDirectly, brushSize = currentBrushSize()) {
+            const cells = [];
+
+            for (const point of points) {
+                cells.push(...brushCellsAtSize(point.x, point.z, brushSize));
+            }
+
             return paintCells(cells, updateCanvasDirectly);
         }
 
+        function drawLine(x0, y0, x1, y1, updateCanvasDirectly, brushSize = currentBrushSize()) {
+            return paintShapePoints(linePoints(x0, y0, x1, y1), updateCanvasDirectly, brushSize);
+        }
+
+        function drawShape(tool, x0, z0, x1, z1, updateCanvasDirectly, flipSide = false, brushSize = currentBrushSize()) {
+            return paintShapePoints(shapePointsForTool(tool, x0, z0, x1, z1, flipSide), updateCanvasDirectly, brushSize);
+        }
+
+        function drawShapeDraft(draft, updateCanvasDirectly) {
+            return paintShapePoints(shapePointsForDraft(draft), updateCanvasDirectly, draft.brushSize || currentBrushSize());
+        }
+
         // --- PREVIEW CURSOR LAYER ---
-        function previewFillStyleAt(x, z) {
+        function previewFillStyleAt(x, z, color = selectedColor, tone = selectedTone) {
             const cell = cellAtGlobal(x, z);
             const rgb = manualShadingActive()
-                ? rgbForMapTone(selectedColor, selectedTone)
-                : (cell ? rgbForCellColor(cell, selectedColor) : rgbForMapTone(selectedColor, "normal"));
+                ? rgbForMapTone(color, tone)
+                : (cell ? rgbForCellColor(cell, color) : rgbForMapTone(color, "normal"));
             return rgbToCss(rgb);
         }
 
-        function previewBrush(cx, cz, size, offsetStart) {
+        function previewBrush(cx, cz, size, offsetStart, color = selectedColor, tone = selectedTone) {
             const offsetEnd = size - offsetStart - 1;
             for (let bx = cx - offsetStart; bx <= cx + offsetEnd; bx++) {
                 for (let bz = cz - offsetStart; bz <= cz + offsetEnd; bz++) {
                     if (bx < 0 || bx >= mapWidth || bz < 0 || bz >= mapHeight) continue;
-                    previewCtx.fillStyle = previewFillStyleAt(bx, bz);
+                    previewCtx.fillStyle = previewFillStyleAt(bx, bz, color, tone);
                     previewCtx.fillRect(bx, bz, 1, 1);
                 }
             }
         }
 
-        function previewLine(x0, y0, x1, y1, size, offsetStart) {
-            let dx = Math.abs(x1 - x0);
-            let dy = Math.abs(y1 - y0);
-            let sx = (x0 < x1) ? 1 : -1;
-            let sy = (y0 < y1) ? 1 : -1;
-            let err = dx - dy;
-
-            while(true) {
-                previewBrush(x0, y0, size, offsetStart);
-                if (x0 === x1 && y0 === y1) break;
-                let e2 = 2 * err;
-                if (e2 > -dy) { err -= dy; x0 += sx; }
-                if (e2 < dx) { err += dx; y0 += sy; }
+        function previewShape(tool, x0, z0, x1, z1, size, offsetStart, flipSide = false, color = selectedColor, tone = selectedTone) {
+            for (const point of shapePointsForTool(tool, x0, z0, x1, z1, flipSide)) {
+                previewBrush(point.x, point.z, size, offsetStart, color, tone);
             }
+        }
+
+        function isEditableShapeTool(tool = activeTool) {
+            return tool === 'rectangle' || tool === 'circle';
+        }
+
+        function currentShapeSelectionSnapshot() {
+            const block = selectedBlockForColor(selectedColor);
+            if (!selectedColor || !block) return null;
+            return {
+                colorId: selectedColor.id,
+                blockKey: block.key,
+                tone: selectedDisplayTone()
+            };
+        }
+
+        function colorForShapeDraft(draft) {
+            return draft && COLORS_BY_ID.has(draft.colorId)
+                ? COLORS_BY_ID.get(draft.colorId)
+                : selectedColor;
+        }
+
+        function toneForShapeDraft(draft) {
+            return draft ? normalizeTone(draft.tone) : selectedTone;
+        }
+
+        function boundsForPoints(points, fallback = null) {
+            if (!points || points.length === 0) {
+                return fallback || { left: 0, right: 0, top: 0, bottom: 0 };
+            }
+            let left = Infinity;
+            let right = -Infinity;
+            let top = Infinity;
+            let bottom = -Infinity;
+            for (const point of points) {
+                left = Math.min(left, point.x);
+                right = Math.max(right, point.x);
+                top = Math.min(top, point.z);
+                bottom = Math.max(bottom, point.z);
+            }
+            return { left, right, top, bottom };
+        }
+
+        function normalizedShapeBounds(shape) {
+            if (shape && shape.tool === 'curve') {
+                return boundsForPoints(shapePointsForDraft(shape));
+            }
+            return {
+                left: Math.min(shape.x0, shape.x1),
+                right: Math.max(shape.x0, shape.x1),
+                top: Math.min(shape.z0, shape.z1),
+                bottom: Math.max(shape.z0, shape.z1)
+            };
+        }
+
+        function hideShapeSelectionBox() {
+            if (shapeSelectionBox) {
+                shapeSelectionBox.classList.remove("visible");
+                shapeSelectionBox.classList.remove("selection-mode");
+            }
+        }
+
+        function positionShapeSelectionBox() {
+            if (!shapeSelectionBox || !activeShapeDraft || mapWidth <= 0 || mapHeight <= 0) {
+                hideShapeSelectionBox();
+                return;
+            }
+
+            const bounds = normalizedShapeBounds(activeShapeDraft);
+            const canvasRect = canvas.getBoundingClientRect();
+            const wrapperRect = canvas.parentElement.getBoundingClientRect();
+            const cellWidth = canvasRect.width / mapWidth;
+            const cellHeight = canvasRect.height / mapHeight;
+
+            shapeSelectionBox.classList.add("visible");
+            shapeSelectionBox.classList.remove("selection-mode");
+            shapeSelectionBox.style.left = `${canvasRect.left - wrapperRect.left + bounds.left * cellWidth}px`;
+            shapeSelectionBox.style.top = `${canvasRect.top - wrapperRect.top + bounds.top * cellHeight}px`;
+            shapeSelectionBox.style.width = `${Math.max(cellWidth, (bounds.right - bounds.left + 1) * cellWidth)}px`;
+            shapeSelectionBox.style.height = `${Math.max(cellHeight, (bounds.bottom - bounds.top + 1) * cellHeight)}px`;
+        }
+
+        function renderActiveShapeDraft() {
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+            if (!activeShapeDraft) {
+                hideShapeSelectionBox();
+                return;
+            }
+
+            const size = activeShapeDraft.brushSize || 1;
+            const offsetStart = Math.floor(size / 2);
+            const color = colorForShapeDraft(activeShapeDraft);
+            const tone = toneForShapeDraft(activeShapeDraft);
+            for (const point of shapePointsForDraft(activeShapeDraft)) {
+                previewBrush(point.x, point.z, size, offsetStart, color, tone);
+            }
+            positionShapeSelectionBox();
+        }
+
+        function cancelActiveShapeDraft() {
+            activeShapeDraft = null;
+            activeShapeInteraction = null;
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+            hideShapeSelectionBox();
+        }
+
+        function withDraftSelection(draft, action) {
+            const color = colorForShapeDraft(draft);
+            const previousColor = selectedColor;
+            const previousTone = selectedTone;
+            const previousBlockKey = selectedBlockByColorId[color.id];
+
+            selectedColor = color;
+            selectedTone = toneForShapeDraft(draft);
+            selectedBlockByColorId[color.id] = draft.blockKey;
+
+            try {
+                return action();
+            } finally {
+                selectedColor = previousColor;
+                selectedTone = previousTone;
+                if (previousBlockKey === undefined) {
+                    delete selectedBlockByColorId[color.id];
+                } else {
+                    selectedBlockByColorId[color.id] = previousBlockKey;
+                }
+            }
+        }
+
+        function commitActiveShapeDraft() {
+            if (!activeShapeDraft) return false;
+
+            const draft = { ...activeShapeDraft };
+            cancelActiveShapeDraft();
+
+            saveCurrentStateToUndo();
+            const changed = withDraftSelection(draft, () => drawShapeDraft(draft, true));
+
+            if (!changed) {
+                undoStack.pop();
+                updateButtons();
+            }
+
+            renderPaletteRows();
+            updateCursorPreview(lastMouseX, lastMouseZ);
+            return changed;
+        }
+
+        function draftFromActiveCurve() {
+            if (!activeCurveDraft) return null;
+            return {
+                tool: 'curve',
+                x0: activeCurveDraft.x0,
+                z0: activeCurveDraft.z0,
+                x1: activeCurveDraft.x1,
+                z1: activeCurveDraft.z1,
+                c1x: activeCurveDraft.c1x,
+                c1z: activeCurveDraft.c1z,
+                c2x: activeCurveDraft.c2x,
+                c2z: activeCurveDraft.c2z,
+                brushSize: activeCurveDraft.brushSize,
+                colorId: activeCurveDraft.colorId,
+                blockKey: activeCurveDraft.blockKey,
+                tone: activeCurveDraft.tone
+            };
+        }
+
+        function renderActiveCurveDraft() {
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+            hideShapeSelectionBox();
+            const draft = draftFromActiveCurve();
+            if (!draft) return;
+            const size = draft.brushSize || 1;
+            const offsetStart = Math.floor(size / 2);
+            const color = colorForShapeDraft(draft);
+            const tone = toneForShapeDraft(draft);
+            for (const point of shapePointsForDraft(draft)) {
+                previewBrush(point.x, point.z, size, offsetStart, color, tone);
+            }
+        }
+
+        function cancelActiveCurveDraft() {
+            activeCurveDraft = null;
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+        }
+
+        function finalizeActiveCurveDraftToEditableShape() {
+            const draft = draftFromActiveCurve();
+            if (!draft) return false;
+            activeCurveDraft = null;
+            activeShapeDraft = draft;
+            renderActiveShapeDraft();
+            return true;
+        }
+
+        function commitActiveCurveDraft() {
+            if (!activeCurveDraft) return false;
+            if (!finalizeActiveCurveDraftToEditableShape()) return false;
+            return commitActiveShapeDraft();
+        }
+
+        function beginCurveControlDrag(x, z) {
+            if (!activeCurveDraft || activeCurveDraft.phase >= 2) return false;
+            activeCurveDraft.draggingControl = true;
+            updateCurveControlPoint(x, z);
+            renderActiveCurveDraft();
+            return true;
+        }
+
+        function updateCurveControlPoint(x, z) {
+            if (!activeCurveDraft) return;
+            if (activeCurveDraft.phase === 0) {
+                activeCurveDraft.c1x = x;
+                activeCurveDraft.c1z = z;
+            } else {
+                activeCurveDraft.c2x = x;
+                activeCurveDraft.c2z = z;
+            }
+        }
+
+        function finishCurveControlDrag(x, z) {
+            if (!activeCurveDraft || !activeCurveDraft.draggingControl) return false;
+            updateCurveControlPoint(x, z);
+            activeCurveDraft.draggingControl = false;
+            activeCurveDraft.phase += 1;
+            if (activeCurveDraft.phase >= 2) {
+                finalizeActiveCurveDraftToEditableShape();
+            } else {
+                renderActiveCurveDraft();
+            }
+            return true;
+        }
+
+        function clampShapeToMap(shape) {
+            const bounds = normalizedShapeBounds(shape);
+            let dx = 0;
+            let dz = 0;
+
+            if (bounds.left < 0) dx = -bounds.left;
+            if (bounds.right + dx >= mapWidth) dx = mapWidth - 1 - bounds.right;
+            if (bounds.top < 0) dz = -bounds.top;
+            if (bounds.bottom + dz >= mapHeight) dz = mapHeight - 1 - bounds.bottom;
+
+            return translateShapeDraft(shape, dx, dz);
+        }
+
+        function translateShapeDraft(shape, dx, dz) {
+            const next = {
+                ...shape,
+                x0: shape.x0 + dx,
+                x1: shape.x1 + dx,
+                z0: shape.z0 + dz,
+                z1: shape.z1 + dz
+            };
+
+            if (shape.tool === 'curve') {
+                next.c1x = (shape.c1x ?? shape.x0) + dx;
+                next.c1z = (shape.c1z ?? shape.z0) + dz;
+                next.c2x = (shape.c2x ?? shape.x1) + dx;
+                next.c2z = (shape.c2z ?? shape.z1) + dz;
+            }
+
+            return next;
+        }
+
+        function scaleValueToBounds(value, oldMin, oldMax, newMin, newMax) {
+            if (oldMax === oldMin) return Math.round((newMin + newMax) / 2);
+            return newMin + ((value - oldMin) / (oldMax - oldMin)) * (newMax - newMin);
+        }
+
+        function transformShapeDraftToBounds(draft, bounds, oldBounds) {
+            if (draft.tool !== 'curve') {
+                return {
+                    ...draft,
+                    x0: bounds.left,
+                    z0: bounds.top,
+                    x1: bounds.right,
+                    z1: bounds.bottom
+                };
+            }
+
+            return {
+                ...draft,
+                x0: scaleValueToBounds(draft.x0, oldBounds.left, oldBounds.right, bounds.left, bounds.right),
+                z0: scaleValueToBounds(draft.z0, oldBounds.top, oldBounds.bottom, bounds.top, bounds.bottom),
+                x1: scaleValueToBounds(draft.x1, oldBounds.left, oldBounds.right, bounds.left, bounds.right),
+                z1: scaleValueToBounds(draft.z1, oldBounds.top, oldBounds.bottom, bounds.top, bounds.bottom),
+                c1x: scaleValueToBounds(draft.c1x ?? draft.x0, oldBounds.left, oldBounds.right, bounds.left, bounds.right),
+                c1z: scaleValueToBounds(draft.c1z ?? draft.z0, oldBounds.top, oldBounds.bottom, bounds.top, bounds.bottom),
+                c2x: scaleValueToBounds(draft.c2x ?? draft.x1, oldBounds.left, oldBounds.right, bounds.left, bounds.right),
+                c2z: scaleValueToBounds(draft.c2z ?? draft.z1, oldBounds.top, oldBounds.bottom, bounds.top, bounds.bottom)
+            };
+        }
+
+        function clientDeltaToCellDelta(event) {
+            const canvasRect = canvas.getBoundingClientRect();
+            const cellWidth = canvasRect.width / mapWidth;
+            const cellHeight = canvasRect.height / mapHeight;
+            return {
+                dx: Math.round((event.clientX - activeShapeInteraction.startClientX) / cellWidth),
+                dz: Math.round((event.clientY - activeShapeInteraction.startClientY) / cellHeight)
+            };
+        }
+
+        function resizedShapeFromInteraction(event) {
+            const { dx, dz } = clientDeltaToCellDelta(event);
+            const interaction = activeShapeInteraction;
+            const bounds = { ...interaction.startBounds };
+            const handle = interaction.handle;
+
+            if (handle.includes("w")) bounds.left += dx;
+            if (handle.includes("e")) bounds.right += dx;
+            if (handle.includes("n")) bounds.top += dz;
+            if (handle.includes("s")) bounds.bottom += dz;
+
+            bounds.left = Math.max(0, Math.min(mapWidth - 1, bounds.left));
+            bounds.right = Math.max(0, Math.min(mapWidth - 1, bounds.right));
+            bounds.top = Math.max(0, Math.min(mapHeight - 1, bounds.top));
+            bounds.bottom = Math.max(0, Math.min(mapHeight - 1, bounds.bottom));
+
+            if (bounds.left > bounds.right) {
+                const temp = bounds.left;
+                bounds.left = bounds.right;
+                bounds.right = temp;
+            }
+            if (bounds.top > bounds.bottom) {
+                const temp = bounds.top;
+                bounds.top = bounds.bottom;
+                bounds.bottom = temp;
+            }
+
+            return transformShapeDraftToBounds(interaction.startDraft, bounds, interaction.startBounds);
+        }
+
+        function movedShapeFromInteraction(event) {
+            const { dx, dz } = clientDeltaToCellDelta(event);
+            const start = activeShapeInteraction.startDraft;
+            return clampShapeToMap(translateShapeDraft(start, dx, dz));
+        }
+
+        function startShapeSelectionInteraction(event) {
+            if (!activeShapeDraft || event.button !== 0) return;
+            const handle = event.target.dataset ? event.target.dataset.handle : "";
+            activeShapeInteraction = {
+                mode: handle ? "resize" : "move",
+                handle,
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                startDraft: { ...activeShapeDraft },
+                startBounds: normalizedShapeBounds(activeShapeDraft)
+            };
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function moveShapeSelectionInteraction(event) {
+            if (!activeShapeInteraction) return;
+            activeShapeDraft = activeShapeInteraction.mode === "resize"
+                ? resizedShapeFromInteraction(event)
+                : movedShapeFromInteraction(event);
+            renderActiveShapeDraft();
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function finishShapeSelectionInteraction(event) {
+            if (!activeShapeInteraction) return;
+            moveShapeSelectionInteraction(event);
+            activeShapeInteraction = null;
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function activePaintLayerForSelection() {
+            const layer = activeLayer();
+            if (!layerCanPaint(layer)) return null;
+            if (layer.kind !== "paint") {
+                setPaletteStatus("Selections only work on paint layers. Add or select a paint layer first.");
+                return null;
+            }
+            return layer;
+        }
+
+        function parseLayerCellKey(key) {
+            const [x, z] = String(key).split(",").map(Number);
+            return Number.isFinite(x) && Number.isFinite(z) ? { x, z } : null;
+        }
+
+        function pointInPolygon(x, z, polygon) {
+            if (!polygon || polygon.length < 3) return false;
+            const px = x + 0.5;
+            const pz = z + 0.5;
+            let inside = false;
+
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const a = polygon[i];
+                const b = polygon[j];
+                const intersects = ((a.z > pz) !== (b.z > pz)) &&
+                    (px < (b.x - a.x) * (pz - a.z) / ((b.z - a.z) || 1e-9) + a.x);
+                if (intersects) inside = !inside;
+            }
+
+            return inside;
+        }
+
+        function cellsInRectangleSelection(layer, x0, z0, x1, z1) {
+            const left = Math.min(x0, x1);
+            const right = Math.max(x0, x1);
+            const top = Math.min(z0, z1);
+            const bottom = Math.max(z0, z1);
+            const cells = [];
+
+            for (const [key, item] of layer.cells.entries()) {
+                const pos = parseLayerCellKey(key);
+                if (!pos || pos.x < left || pos.x > right || pos.z < top || pos.z > bottom) continue;
+                cells.push({ x: pos.x, z: pos.z, item: { ...item } });
+            }
+
+            return cells;
+        }
+
+        function cellsInLassoSelection(layer, polygon) {
+            const bounds = boundsForPoints(polygon);
+            const cells = [];
+
+            for (const [key, item] of layer.cells.entries()) {
+                const pos = parseLayerCellKey(key);
+                if (!pos || pos.x < bounds.left || pos.x > bounds.right || pos.z < bounds.top || pos.z > bounds.bottom) continue;
+                if (pointInPolygon(pos.x, pos.z, polygon)) {
+                    cells.push({ x: pos.x, z: pos.z, item: { ...item } });
+                }
+            }
+
+            return cells;
+        }
+
+        function selectionDisplayCells(selection = activeSelection) {
+            if (!selection) return [];
+            return selection.cells.map(cell => ({
+                x: cell.x + selection.offsetX,
+                z: cell.z + selection.offsetZ,
+                item: cell.item
+            })).filter(cell => cell.x >= 0 && cell.x < mapWidth && cell.z >= 0 && cell.z < mapHeight);
+        }
+
+        function selectionBounds(selection = activeSelection) {
+            return boundsForPoints(selectionDisplayCells(selection), { left: 0, right: 0, top: 0, bottom: 0 });
+        }
+
+        function positionSelectionBox() {
+            if (!shapeSelectionBox || !activeSelection || activeSelection.cells.length === 0) {
+                hideShapeSelectionBox();
+                return;
+            }
+
+            const bounds = selectionBounds();
+            const canvasRect = canvas.getBoundingClientRect();
+            const wrapperRect = canvas.parentElement.getBoundingClientRect();
+            const cellWidth = canvasRect.width / mapWidth;
+            const cellHeight = canvasRect.height / mapHeight;
+
+            shapeSelectionBox.classList.add("visible", "selection-mode");
+            shapeSelectionBox.style.left = `${canvasRect.left - wrapperRect.left + bounds.left * cellWidth}px`;
+            shapeSelectionBox.style.top = `${canvasRect.top - wrapperRect.top + bounds.top * cellHeight}px`;
+            shapeSelectionBox.style.width = `${Math.max(cellWidth, (bounds.right - bounds.left + 1) * cellWidth)}px`;
+            shapeSelectionBox.style.height = `${Math.max(cellHeight, (bounds.bottom - bounds.top + 1) * cellHeight)}px`;
+        }
+
+        function renderActiveSelection() {
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+            if (!activeSelection) {
+                hideShapeSelectionBox();
+                return;
+            }
+
+            if (activeSelection.floating) {
+                for (const cell of selectionDisplayCells()) {
+                    const info = layerCellInfo(cell.item);
+                    if (!info) continue;
+                    previewCtx.fillStyle = rgbToCss(colorForLayerCell(cell.item, cellAtGlobal(cell.x, cell.z)) || rgbForMapTone(info.color, "normal"));
+                    previewCtx.fillRect(cell.x, cell.z, 1, 1);
+                }
+            }
+
+            positionSelectionBox();
+        }
+
+        function cancelActiveSelection() {
+            activeSelection = null;
+            activeSelectionInteraction = null;
+            previewCtx.clearRect(0, 0, mapWidth, mapHeight);
+            hideShapeSelectionBox();
+        }
+
+        function commitActiveSelection() {
+            if (!activeSelection) return false;
+            const selection = activeSelection;
+            const layer = editorLayers.find(entry => entry.id === selection.layerId);
+            cancelActiveSelection();
+
+            if (!layer || layer.kind !== "paint") return false;
+            if (selection.floating) {
+                for (const cell of selectionDisplayCells(selection)) {
+                    if (cell.x < 0 || cell.x >= mapWidth || cell.z < 0 || cell.z >= mapHeight) continue;
+                    layer.cells.set(layerCellKey(cell.x, cell.z), { ...cell.item });
+                }
+                renderLayers();
+                renderFullCanvas();
+            }
+            return selection.floating;
+        }
+
+        function beginFloatingSelectionMove(selection) {
+            const layer = editorLayers.find(entry => entry.id === selection.layerId);
+            if (!layer || layer.kind !== "paint") return false;
+
+            if (!selection.undoSaved) {
+                saveCurrentStateToUndo();
+                selection.undoSaved = true;
+            }
+
+            if (!selection.floating) {
+                for (const cell of selection.cells) {
+                    layer.cells.delete(layerCellKey(cell.x, cell.z));
+                }
+                selection.floating = true;
+                renderFullCanvas();
+            }
+
+            return true;
+        }
+
+        function clampSelectionOffset(selection, offsetX, offsetZ) {
+            const sourceBounds = boundsForPoints(selection.cells);
+            let x = offsetX;
+            let z = offsetZ;
+            if (sourceBounds.left + x < 0) x = -sourceBounds.left;
+            if (sourceBounds.right + x >= mapWidth) x = mapWidth - 1 - sourceBounds.right;
+            if (sourceBounds.top + z < 0) z = -sourceBounds.top;
+            if (sourceBounds.bottom + z >= mapHeight) z = mapHeight - 1 - sourceBounds.bottom;
+            return { offsetX: x, offsetZ: z };
+        }
+
+        function startSelectionInteraction(event) {
+            if (!activeSelection || event.button !== 0) return false;
+            if (!beginFloatingSelectionMove(activeSelection)) return false;
+            activeSelectionInteraction = {
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                startOffsetX: activeSelection.offsetX,
+                startOffsetZ: activeSelection.offsetZ
+            };
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+        }
+
+        function moveSelectionInteraction(event) {
+            if (!activeSelectionInteraction || !activeSelection) return;
+            const canvasRect = canvas.getBoundingClientRect();
+            const cellWidth = canvasRect.width / mapWidth;
+            const cellHeight = canvasRect.height / mapHeight;
+            const dx = Math.round((event.clientX - activeSelectionInteraction.startClientX) / cellWidth);
+            const dz = Math.round((event.clientY - activeSelectionInteraction.startClientY) / cellHeight);
+            const clamped = clampSelectionOffset(
+                activeSelection,
+                activeSelectionInteraction.startOffsetX + dx,
+                activeSelectionInteraction.startOffsetZ + dz
+            );
+            activeSelection.offsetX = clamped.offsetX;
+            activeSelection.offsetZ = clamped.offsetZ;
+            renderActiveSelection();
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function finishSelectionInteraction(event) {
+            if (!activeSelectionInteraction) return;
+            moveSelectionInteraction(event);
+            activeSelectionInteraction = null;
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function startSelectionBoxInteraction(event) {
+            if (activeSelection) {
+                startSelectionInteraction(event);
+                return;
+            }
+            startShapeSelectionInteraction(event);
+        }
+
+        function previewSelectionRectangle(x0, z0, x1, z1) {
+            const left = Math.min(x0, x1);
+            const right = Math.max(x0, x1);
+            const top = Math.min(z0, z1);
+            const bottom = Math.max(z0, z1);
+            previewCtx.save();
+            previewCtx.strokeStyle = "#000";
+            previewCtx.lineWidth = 1;
+            previewCtx.setLineDash([3, 2]);
+            previewCtx.strokeRect(left + 0.5, top + 0.5, Math.max(1, right - left), Math.max(1, bottom - top));
+            previewCtx.restore();
+        }
+
+        function previewLassoPath(path) {
+            if (!path || path.length === 0) return;
+            previewCtx.save();
+            previewCtx.strokeStyle = "#000";
+            previewCtx.lineWidth = 1;
+            previewCtx.setLineDash([3, 2]);
+            previewCtx.beginPath();
+            previewCtx.moveTo(path[0].x + 0.5, path[0].z + 0.5);
+            for (let i = 1; i < path.length; i++) {
+                previewCtx.lineTo(path[i].x + 0.5, path[i].z + 0.5);
+            }
+            previewCtx.stroke();
+            previewCtx.restore();
+        }
+
+        function createSelectionFromCells(cells, layerId) {
+            if (!cells || cells.length === 0) {
+                setPaletteStatus("No paint-layer pixels found in that selection.");
+                cancelActiveSelection();
+                return false;
+            }
+            activeSelection = {
+                layerId,
+                cells,
+                offsetX: 0,
+                offsetZ: 0,
+                floating: false,
+                undoSaved: false
+            };
+            renderActiveSelection();
+            return true;
+        }
+
+        function copyActiveSelectionToClipboard() {
+            if (!activeSelection || activeSelection.cells.length === 0) {
+                setPaletteStatus("No active paint-layer selection to copy.");
+                return false;
+            }
+
+            const cells = selectionDisplayCells();
+            const bounds = boundsForPoints(cells);
+            selectionClipboard = {
+                width: bounds.right - bounds.left + 1,
+                height: bounds.bottom - bounds.top + 1,
+                cells: cells.map(cell => ({
+                    dx: cell.x - bounds.left,
+                    dz: cell.z - bounds.top,
+                    item: { ...cell.item }
+                }))
+            };
+            setPaletteStatus(`Copied ${selectionClipboard.cells.length} selected pixels.`);
+            return true;
+        }
+
+        function defaultPasteAnchor() {
+            if (lastMouseX >= 0 && lastMouseX < mapWidth && lastMouseZ >= 0 && lastMouseZ < mapHeight) {
+                return { x: lastMouseX, z: lastMouseZ };
+            }
+
+            const canvasRect = canvas.getBoundingClientRect();
+            const containerRect = canvasContainer.getBoundingClientRect();
+            const centerClientX = Math.max(canvasRect.left, Math.min(canvasRect.right - 1, containerRect.left + containerRect.width / 2));
+            const centerClientY = Math.max(canvasRect.top, Math.min(canvasRect.bottom - 1, containerRect.top + containerRect.height / 2));
+            const scaleX = mapWidth / canvasRect.width;
+            const scaleY = mapHeight / canvasRect.height;
+            return {
+                x: Math.max(0, Math.min(mapWidth - 1, Math.floor((centerClientX - canvasRect.left) * scaleX))),
+                z: Math.max(0, Math.min(mapHeight - 1, Math.floor((centerClientY - canvasRect.top) * scaleY)))
+            };
+        }
+
+        function pasteSelectionClipboard() {
+            if (!selectionClipboard || !selectionClipboard.cells || selectionClipboard.cells.length === 0) {
+                setPaletteStatus("No copied selection to paste.");
+                return false;
+            }
+
+            if (activeSelection) commitActiveSelection();
+            if (activeShapeDraft) commitActiveShapeDraft();
+            if (activeCurveDraft) commitActiveCurveDraft();
+
+            const layer = activePaintLayerForSelection();
+            if (!layer) return false;
+
+            const anchor = defaultPasteAnchor();
+            const maxLeft = Math.max(0, mapWidth - selectionClipboard.width);
+            const maxTop = Math.max(0, mapHeight - selectionClipboard.height);
+            const left = Math.max(0, Math.min(maxLeft, anchor.x - Math.floor(selectionClipboard.width / 2)));
+            const top = Math.max(0, Math.min(maxTop, anchor.z - Math.floor(selectionClipboard.height / 2)));
+
+            saveCurrentStateToUndo();
+            activeSelection = {
+                layerId: layer.id,
+                cells: selectionClipboard.cells.map(cell => ({
+                    x: left + cell.dx,
+                    z: top + cell.dz,
+                    item: { ...cell.item }
+                })),
+                offsetX: 0,
+                offsetZ: 0,
+                floating: true,
+                undoSaved: true
+            };
+            renderActiveSelection();
+            setPaletteStatus(`Pasted ${activeSelection.cells.length} pixels. Drag to move, click elsewhere to lock.`);
+            return true;
         }
 
         function hideCursorSelectionFrame() {
@@ -4549,6 +6769,25 @@
 
         function updateCursorPreview(x, z) {
             if (mapWidth === 0 || loadedFiles.length === 0) {
+                hideCursorSelectionFrame();
+                hideShapeSelectionBox();
+                return;
+            }
+
+            if (activeShapeDraft && !isDrawing) {
+                renderActiveShapeDraft();
+                hideCursorSelectionFrame();
+                return;
+            }
+
+            if (activeCurveDraft && !isDrawing) {
+                renderActiveCurveDraft();
+                hideCursorSelectionFrame();
+                return;
+            }
+
+            if (activeSelection && !isDrawing) {
+                renderActiveSelection();
                 hideCursorSelectionFrame();
                 return;
             }
@@ -4582,8 +6821,18 @@
 
             if (activeTool === 'picker') return;
 
-            if (isDrawing && activeTool === 'line') {
-                previewLine(lineStartX, lineStartZ, x, z, size, offsetStart);
+            if (isDrawing && activeTool === 'rect-select') {
+                previewSelectionRectangle(lineStartX, lineStartZ, x, z);
+                return;
+            }
+
+            if (isDrawing && activeTool === 'lasso-select') {
+                previewLassoPath(lassoPath);
+                return;
+            }
+
+            if (isDrawing && isShapeTool()) {
+                previewShape(activeTool, lineStartX, lineStartZ, x, z, size, offsetStart, arcFlipSide);
                 return; 
             }
 
@@ -4615,6 +6864,8 @@
                 layers: editorLayers.map(serializeLayer),
                 activeLayerId,
                 quickPaletteItems: quickPaletteItems.map(item => ({ ...item })),
+                colorPickerSlots: colorPickerSlots.map(item => item ? { ...item } : null),
+                selectedColorPickerSlotIndex,
                 selectedColorId: selectedColor ? selectedColor.id : null,
                 selectedTone,
                 selectedBlockByColorId: { ...selectedBlockByColorId }
@@ -4658,6 +6909,16 @@
                 quickPaletteItems = snapshot.quickPaletteItems.map(validPaletteItem).filter(Boolean);
                 saveQuickPalette();
             }
+            if (snapshot.colorPickerSlots) {
+                colorPickerSlots = snapshot.colorPickerSlots.map(item => item ? validPaletteItem(item) : null);
+                while (colorPickerSlots.length < COLOR_PICKER_SLOT_ROW_LENGTHS.reduce((sum, count) => sum + count, 0)) {
+                    colorPickerSlots.push(null);
+                }
+                colorPickerSlots = colorPickerSlots.slice(0, COLOR_PICKER_SLOT_ROW_LENGTHS.reduce((sum, count) => sum + count, 0));
+                selectedColorPickerSlotIndex = Number.isInteger(snapshot.selectedColorPickerSlotIndex)
+                    ? Math.max(0, Math.min(snapshot.selectedColorPickerSlotIndex, colorPickerSlots.length - 1))
+                    : 0;
+            }
             if (snapshot.selectedBlockByColorId) {
                 for (const colorId in snapshot.selectedBlockByColorId) {
                     selectedBlockByColorId[colorId] = snapshot.selectedBlockByColorId[colorId];
@@ -4668,12 +6929,20 @@
             }
             if (snapshot.selectedTone) selectedTone = normalizeTone(snapshot.selectedTone);
             renderLayers();
-            renderQuickPalette();
             renderPaletteRows();
             renderFullCanvas();
         }
 
         function undoLastChange() {
+            if (activeSelection) {
+                commitActiveSelection();
+            }
+            if (activeCurveDraft) {
+                commitActiveCurveDraft();
+            }
+            if (activeShapeDraft) {
+                commitActiveShapeDraft();
+            }
             if (undoStack.length === 0) return;
             const currentState = createEditorSnapshot();
             redoStack.push(currentState);
@@ -4684,6 +6953,15 @@
         }
 
         function redoLastChange() {
+            if (activeSelection) {
+                commitActiveSelection();
+            }
+            if (activeCurveDraft) {
+                commitActiveCurveDraft();
+            }
+            if (activeShapeDraft) {
+                commitActiveShapeDraft();
+            }
             if (redoStack.length === 0) return;
             const currentState = createEditorSnapshot();
             undoStack.push(currentState);
@@ -4713,7 +6991,38 @@
         // --- MOUSE EVENTS ---
         canvasContainer.addEventListener('contextmenu', e => e.preventDefault());
 
+        ["dragenter", "dragover", "dragleave"].forEach(type => {
+            canvasContainer.addEventListener(type, handleCanvasPaletteDragEvent, { passive: false });
+        });
+
+        canvasContainer.addEventListener("drop", event => {
+            handleCanvasPaletteDragEvent(event);
+            endPaletteDrag();
+        }, { passive: false });
+
+        document.addEventListener("dragend", endPaletteDrag);
+        document.addEventListener("drop", endPaletteDrag);
+        document.addEventListener("mousedown", event => {
+            if ((!activeSelection && !activeShapeDraft && !activeCurveDraft) || event.button !== 0) return;
+            const target = event.target;
+            if (shapeSelectionBox && shapeSelectionBox.contains(target)) return;
+            if (target === canvas || target === previewCanvas) return;
+            if (activeSelection) commitActiveSelection();
+            if (activeCurveDraft) commitActiveCurveDraft();
+            commitActiveShapeDraft();
+        }, true);
+
         canvasContainer.addEventListener('mouseleave', () => {
+            if (activeSelection) {
+                renderActiveSelection();
+                hideCursorSelectionFrame();
+                return;
+            }
+            if (activeShapeDraft) {
+                renderActiveShapeDraft();
+                hideCursorSelectionFrame();
+                return;
+            }
             if (keepTextPreviewIfActive()) return;
             if (previewCtx && mapWidth > 0) previewCtx.clearRect(0, 0, mapWidth, mapHeight);
             hideCursorSelectionFrame();
@@ -4723,9 +7032,52 @@
             if (loadedFiles.length === 0) return;
             
             if (e.button === 0) { 
+                if (activeShapeDraft) {
+                    commitActiveShapeDraft();
+                }
+                if (activeSelection) {
+                    commitActiveSelection();
+                }
+
                 const {x, z} = getMouseCoords(e);
+                if (x < 0 || x >= mapWidth || z < 0 || z >= mapHeight) {
+                    updateCursorPreview(-1, -1);
+                    return;
+                }
+
+                if (activeTool === 'curve' && activeCurveDraft) {
+                    beginCurveControlDrag(x, z);
+                    lastMouseX = x;
+                    lastMouseZ = z;
+                    return;
+                }
+
+                if (isSelectionTool()) {
+                    const layer = activePaintLayerForSelection();
+                    if (!layer) return;
+                    clearPendingShapeStart();
+                    isDrawing = true;
+                    hasDrawnInCurrentStroke = false;
+                    savedUndoInCurrentStroke = false;
+                    lineStartX = x;
+                    lineStartZ = z;
+                    lassoPath = activeTool === 'lasso-select' ? [{ x, z }] : [];
+                    lastMouseX = x;
+                    lastMouseZ = z;
+                    updateCursorPreview(x, z);
+                    return;
+                }
+
+                if (isDeferredShapeTool()) {
+                    beginPendingShapeStart(activeTool, x, z, e);
+                    lastMouseX = x;
+                    lastMouseZ = z;
+                    updateCursorPreview(x, z);
+                    return;
+                }
 
                 if (activeTool === 'text') {
+                    clearPendingShapeStart();
                     lastMouseX = x;
                     lastMouseZ = z;
                     showTextToolPopup(x, z);
@@ -4733,6 +7085,7 @@
                 }
 
                 if (activeTool === 'picker') {
+                    clearPendingShapeStart();
                     const picked = selectColorFromCell(x, z);
                     lastMouseX = x;
                     lastMouseZ = z;
@@ -4742,6 +7095,7 @@
                 }
 
                 if (activeTool === 'bucket') {
+                    clearPendingShapeStart();
                     saveCurrentStateToUndo();
                     if (!applyBucketFill(x, z)) {
                         undoStack.pop();
@@ -4753,13 +7107,18 @@
                     return;
                 }
 
-                saveCurrentStateToUndo(); 
+                clearPendingShapeStart();
+                if (!isEditableShapeTool() && activeTool !== 'curve') {
+                    saveCurrentStateToUndo();
+                    savedUndoInCurrentStroke = true;
+                }
                 isDrawing = true; 
                 hasDrawnInCurrentStroke = false;
                 
-                if (activeTool === 'line') {
+                if (isShapeTool()) {
                     lineStartX = x;
                     lineStartZ = z;
+                    arcFlipSide = e.shiftKey;
                 } else {
                     if (applyBrush(x, z, true)) {
                         hasDrawnInCurrentStroke = true;
@@ -4781,12 +7140,50 @@
         });
         
         window.addEventListener('mousemove', (e) => {
+            if (activeSelectionInteraction) {
+                moveSelectionInteraction(e);
+                return;
+            }
+            if (activeShapeInteraction) {
+                moveShapeSelectionInteraction(e);
+                return;
+            }
+            if (activeCurveDraft && activeCurveDraft.draggingControl) {
+                const {x, z} = getMouseCoords(e);
+                updateCurveControlPoint(Math.max(0, Math.min(mapWidth - 1, x)), Math.max(0, Math.min(mapHeight - 1, z)));
+                renderActiveCurveDraft();
+                lastMouseX = x;
+                lastMouseZ = z;
+                return;
+            }
             if (activeHudDrag || targetIsInFullscreenHud(e.target)) return;
+            if (paletteDragActive) {
+                restorePaletteDragScroll();
+                return;
+            }
             const {x, z} = getMouseCoords(e);
 
+            if (pendingShapeStart) {
+                if (!startDeferredShapeStroke(e, x, z)) {
+                    lastMouseX = x;
+                    lastMouseZ = z;
+                    if (!isPanning) updateCursorPreview(x, z);
+                    return;
+                }
+            }
+
             if (isDrawing) {
-                if (activeTool === 'line') {
-                    // Line preview layer handles visuals
+                if (activeTool === 'lasso-select') {
+                    if (x !== lastMouseX || z !== lastMouseZ) {
+                        if (x >= 0 && x < mapWidth && z >= 0 && z < mapHeight) {
+                            lassoPath.push({ x, z });
+                        }
+                    }
+                } else if (isSelectionTool()) {
+                    // Selection preview layer handles visuals.
+                } else if (isShapeTool()) {
+                    arcFlipSide = e.shiftKey;
+                    // Shape preview layer handles visuals.
                 } else {
                     if (x !== lastMouseX || z !== lastMouseZ) {
                         if (drawLine(lastMouseX, lastMouseZ, x, z, true)) {
@@ -4807,21 +7204,118 @@
         });
         
         window.addEventListener('mouseup', (e) => { 
+            if (activeSelectionInteraction) {
+                finishSelectionInteraction(e);
+                return;
+            }
+            if (activeShapeInteraction) {
+                finishShapeSelectionInteraction(e);
+                return;
+            }
+            if (activeCurveDraft && activeCurveDraft.draggingControl) {
+                const {x, z} = getMouseCoords(e);
+                finishCurveControlDrag(Math.max(0, Math.min(mapWidth - 1, x)), Math.max(0, Math.min(mapHeight - 1, z)));
+                lastMouseX = x;
+                lastMouseZ = z;
+                updateCursorPreview(x, z);
+                return;
+            }
+            if (pendingShapeStart) {
+                clearPendingShapeStart();
+                const {x, z} = getMouseCoords(e);
+                isDrawing = false;
+                savedUndoInCurrentStroke = false;
+                lastMouseX = x;
+                lastMouseZ = z;
+                updateCursorPreview(x, z);
+                return;
+            }
             if (isDrawing) {
-                if (activeTool === 'line') {
+                if (isSelectionTool()) {
+                    const layer = activePaintLayerForSelection();
+                    if (layer) {
+                        const {x, z} = getMouseCoords(e);
+                        const clampedX = Math.max(0, Math.min(mapWidth - 1, x));
+                        const clampedZ = Math.max(0, Math.min(mapHeight - 1, z));
+                        if (activeTool === 'lasso-select') {
+                            const last = lassoPath[lassoPath.length - 1];
+                            if (!last || last.x !== clampedX || last.z !== clampedZ) {
+                                lassoPath.push({ x: clampedX, z: clampedZ });
+                            }
+                        }
+                        const cells = activeTool === 'rect-select'
+                            ? cellsInRectangleSelection(layer, lineStartX, lineStartZ, clampedX, clampedZ)
+                            : cellsInLassoSelection(layer, lassoPath.length >= 3 ? lassoPath : [
+                                { x: lineStartX, z: lineStartZ },
+                                { x: clampedX, z: lineStartZ },
+                                { x: clampedX, z: clampedZ },
+                                { x: lineStartX, z: clampedZ }
+                            ]);
+                        createSelectionFromCells(cells, layer.id);
+                        hasDrawnInCurrentStroke = cells.length > 0;
+                    }
+                    lassoPath = [];
+                } else if (isShapeTool()) {
                     const {x, z} = getMouseCoords(e);
-                    if (drawLine(lineStartX, lineStartZ, x, z, true)) {
-                        hasDrawnInCurrentStroke = true;
+                    const clampedX = Math.max(0, Math.min(mapWidth - 1, x));
+                    const clampedZ = Math.max(0, Math.min(mapHeight - 1, z));
+                    if (isDeferredShapeTool() && !shapeDragReachedMinimum(lineStartX, lineStartZ, clampedX, clampedZ)) {
+                        hasDrawnInCurrentStroke = false;
+                    } else if (activeTool === 'curve') {
+                        const snapshot = currentShapeSelectionSnapshot();
+                        if (snapshot) {
+                            activeCurveDraft = {
+                                tool: activeTool,
+                                phase: 0,
+                                x0: lineStartX,
+                                z0: lineStartZ,
+                                x1: clampedX,
+                                z1: clampedZ,
+                                c1x: lineStartX,
+                                c1z: lineStartZ,
+                                c2x: clampedX,
+                                c2z: clampedZ,
+                                brushSize: currentBrushSize(),
+                                colorId: snapshot.colorId,
+                                blockKey: snapshot.blockKey,
+                                tone: snapshot.tone
+                            };
+                            hasDrawnInCurrentStroke = true;
+                            renderActiveCurveDraft();
+                        }
+                    } else if (isEditableShapeTool()) {
+                        const snapshot = currentShapeSelectionSnapshot();
+                        if (snapshot) {
+                            activeShapeDraft = {
+                                tool: activeTool,
+                                x0: lineStartX,
+                                z0: lineStartZ,
+                                x1: clampedX,
+                                z1: clampedZ,
+                                brushSize: currentBrushSize(),
+                                colorId: snapshot.colorId,
+                                blockKey: snapshot.blockKey,
+                                tone: snapshot.tone,
+                                flipSide: false
+                            };
+                            hasDrawnInCurrentStroke = true;
+                            renderActiveShapeDraft();
+                        }
+                    } else {
+                        if (drawShape(activeTool, lineStartX, lineStartZ, x, z, true, e.shiftKey)) {
+                            hasDrawnInCurrentStroke = true;
+                        }
                     }
                 }
 
-                if (!hasDrawnInCurrentStroke) {
+                if (!hasDrawnInCurrentStroke && savedUndoInCurrentStroke) {
                     undoStack.pop();
                     updateButtons();
                 }
             }
 
             isDrawing = false; 
+            savedUndoInCurrentStroke = false;
             isPanning = false;
             document.body.style.cursor = 'default';
             
@@ -4990,6 +7484,7 @@
             fullscreenHudOverlay.className = "fullscreen-hud";
             canvasContainer.appendChild(fullscreenHudOverlay);
             moveElementToFullscreenPanel(instantTooltip, canvasContainer);
+            moveElementToFullscreenPanel(colorPickerWindow, canvasContainer);
 
             const stopHudEvent = event => {
                 if (event.target.closest(".fullscreen-hud-panel")) event.stopPropagation();
@@ -5090,6 +7585,7 @@
 
             if (fullscreenActive) {
                 setupFullscreenHud();
+                if (colorPickerWindow.classList.contains("visible")) positionColorPickerWindow();
                 requestAnimationFrame(fitCanvasToFullscreen);
                 return;
             }
@@ -5109,6 +7605,7 @@
 
         window.addEventListener('resize', () => {
             if (isTextToolPopupOpen()) positionTextToolPopup();
+            if (colorPickerWindow.classList.contains("visible")) positionColorPickerWindow();
             if (isCanvasFullscreen()) {
                 fitCanvasToFullscreen();
                 if (fullscreenHudOverlay) {
@@ -5122,6 +7619,12 @@
         canvasContainer.addEventListener('wheel', function(e) {
             lastClientX = e.clientX;
             lastClientY = e.clientY;
+
+            if (paletteDragActive) {
+                e.preventDefault();
+                restorePaletteDragScroll();
+                return;
+            }
 
             if (isToolScrollKeyHeld) {
                 e.preventDefault();
