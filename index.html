@@ -2617,6 +2617,9 @@
         let lastClientX = window.innerWidth / 2;
         let lastClientY = window.innerHeight / 2;
         let fullscreenRestoreView = null;
+        let fullscreenPreservedView = null;
+        let fullscreenManualView = false;
+        let fullscreenViewRestoreFrame = null;
         let fullscreenHudOverlay = null;
         let fullscreenHudMoveRecords = [];
         let fullscreenHudVisible = true;
@@ -7196,6 +7199,7 @@
                 const dy = e.clientY - startPanY;
                 canvasContainer.scrollLeft = startScrollLeft - dx;
                 canvasContainer.scrollTop = startScrollTop - dy;
+                rememberFullscreenView(true);
             }
             
             lastMouseX = x;
@@ -7343,6 +7347,56 @@
             canvasContainer.scrollTop = Math.max(0, (canvasContainer.scrollHeight - canvasContainer.clientHeight) / 2);
         }
 
+        function clampCanvasScroll(left, top) {
+            const maxScrollLeft = Math.max(0, canvasContainer.scrollWidth - canvasContainer.clientWidth);
+            const maxScrollTop = Math.max(0, canvasContainer.scrollHeight - canvasContainer.clientHeight);
+            return {
+                left: Math.max(0, Math.min(maxScrollLeft, left)),
+                top: Math.max(0, Math.min(maxScrollTop, top))
+            };
+        }
+
+        function captureCanvasView() {
+            return {
+                scale: currentScale,
+                scrollLeft: canvasContainer.scrollLeft,
+                scrollTop: canvasContainer.scrollTop,
+                clientWidth: canvasContainer.clientWidth,
+                clientHeight: canvasContainer.clientHeight
+            };
+        }
+
+        function rememberFullscreenView(manual = true) {
+            if (!isCanvasFullscreen()) return;
+            fullscreenPreservedView = captureCanvasView();
+            if (manual) fullscreenManualView = true;
+        }
+
+        function restoreFullscreenView(view = fullscreenPreservedView) {
+            if (!isCanvasFullscreen() || !view || mapWidth === 0 || mapHeight === 0) return;
+            currentScale = Math.max(minimumCanvasScale(), Math.min(30, view.scale));
+            applyZoom();
+
+            requestAnimationFrame(() => {
+                const clamped = clampCanvasScroll(view.scrollLeft, view.scrollTop);
+                canvasContainer.scrollLeft = clamped.left;
+                canvasContainer.scrollTop = clamped.top;
+                fullscreenPreservedView = captureCanvasView();
+                updateCursorPreview(lastMouseX, lastMouseZ);
+            });
+        }
+
+        function scheduleFullscreenViewRestore() {
+            if (!isCanvasFullscreen() || !fullscreenManualView || !fullscreenPreservedView) return;
+            if (fullscreenViewRestoreFrame !== null) cancelAnimationFrame(fullscreenViewRestoreFrame);
+            fullscreenViewRestoreFrame = requestAnimationFrame(() => {
+                fullscreenViewRestoreFrame = requestAnimationFrame(() => {
+                    fullscreenViewRestoreFrame = null;
+                    restoreFullscreenView();
+                });
+            });
+        }
+
         function fitCanvasToFullscreen() {
             if (!isCanvasFullscreen() || mapWidth === 0 || mapHeight === 0) return;
 
@@ -7355,6 +7409,8 @@
 
             requestAnimationFrame(() => {
                 centerCanvasView();
+                fullscreenManualView = false;
+                fullscreenPreservedView = captureCanvasView();
                 updateCursorPreview(lastMouseX, lastMouseZ);
             });
         }
@@ -7586,11 +7642,19 @@
             if (fullscreenActive) {
                 setupFullscreenHud();
                 if (colorPickerWindow.classList.contains("visible")) positionColorPickerWindow();
+                fullscreenManualView = false;
+                fullscreenPreservedView = null;
                 requestAnimationFrame(fitCanvasToFullscreen);
                 return;
             }
 
             restoreFullscreenHud();
+            fullscreenManualView = false;
+            fullscreenPreservedView = null;
+            if (fullscreenViewRestoreFrame !== null) {
+                cancelAnimationFrame(fullscreenViewRestoreFrame);
+                fullscreenViewRestoreFrame = null;
+            }
             if (fullscreenRestoreView) {
                 currentScale = fullscreenRestoreView.scale;
                 applyZoom();
@@ -7607,13 +7671,22 @@
             if (isTextToolPopupOpen()) positionTextToolPopup();
             if (colorPickerWindow.classList.contains("visible")) positionColorPickerWindow();
             if (isCanvasFullscreen()) {
-                fitCanvasToFullscreen();
+                if (fullscreenManualView && fullscreenPreservedView) {
+                    scheduleFullscreenViewRestore();
+                } else {
+                    fitCanvasToFullscreen();
+                }
                 if (fullscreenHudOverlay) {
                     fullscreenHudOverlay.querySelectorAll(".fullscreen-hud-panel").forEach(panel => {
                         clampHudPanel(panel, parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
                     });
                 }
             }
+        });
+
+        window.addEventListener('focus', scheduleFullscreenViewRestore);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) scheduleFullscreenViewRestore();
         });
 
         canvasContainer.addEventListener('wheel', function(e) {
@@ -7669,6 +7742,7 @@
             const maxScrollTop = Math.max(0, canvasContainer.scrollHeight - canvasContainer.clientHeight);
             canvasContainer.scrollLeft = Math.max(0, Math.min(maxScrollLeft, canvasContentLeft + mapXUnderMouse * newRenderedScaleX - mouseContentX));
             canvasContainer.scrollTop = Math.max(0, Math.min(maxScrollTop, canvasContentTop + mapZUnderMouse * newRenderedScaleY - mouseContentY));
+            rememberFullscreenView(true);
             
             const {x, z} = getMouseCoords(e);
             updateCursorPreview(x, z);
